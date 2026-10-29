@@ -8,8 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Status:** `v0.1.0` — **scaffold**. O plugin BepInEx carrega e registra o ambiente; as ordens,
-o chat, o LLM e a voz entram nas próximas branches. Nada de gameplay ainda.
+**Status:** `v0.1.0` — **scaffold**. O plugin BepInEx compila e é deployado; o carregamento em
+jogo ainda **não foi confirmado**. As ordens, o chat, o LLM e a voz entram nas próximas
+branches. Nada de gameplay ainda.
 
 ---
 
@@ -20,7 +21,7 @@ o chat, o LLM e a voz entram nas próximas branches. Nada de gameplay ainda.
   de conversa.
 - **Comandar por voz**: push-to-talk, transcrição **dentro do jogo** (Whisper.net), sem serviço
   externo.
-- **O companheiro fala**: TTS local (Kokoro-82M via sherpa-onnx), no posição dele no mundo.
+- **O companheiro fala**: TTS local (Kokoro-82M via sherpa-onnx), na posição dele no mundo.
 - **Personalidade e memória**: cada companheiro tem nome, tom e um histórico curto.
 - **LLM local por padrão**: LM Studio em `http://127.0.0.1:1234/v1`, modelo
   `qwen2.5-3b-instruct`; a API é compatível com OpenAI, então outros provedores podem ser
@@ -69,9 +70,9 @@ O `Environment.props` é **local** e não vai para o repositório. O build refer
 | `Enter` (chat do jogo) | Digite `/<prefixo> ...` ou `Nome, ...` para falar com o companheiro |
 | `V` (segurar) | Push-to-talk (configurável) |
 | `I` | Painel da IA (configurável) — a partir da fase de UI |
-| `F8` | Configurações do BepInEx (não é do mod) |
 
 > As teclas e o prefixo ainda não estão ativos no `v0.1.0`; a tabela é o contrato da fase 1.
+> O BepInEx Configuration Manager (se instalado) usa a tecla dele; não é uma tecla do mod.
 
 ## Arquitetura (resumo)
 
@@ -99,8 +100,9 @@ fazer e usa as APIs nativas para executar.
 
 | Caminho | O que é |
 |---|---|
-| `src/AICompanionsAska/` | O plugin (C#, `net6.0`) |
-| `src/AICompanionsAska/Core/` | Entrada, configuração, logging, ambiente |
+| `src/AICompanionsAska/` | O plugin (C#, `net6.0`); `Plugin.cs` é a entrada |
+| `src/AICompanionsAska/Core/` | Configuração (`ModConfig`) e logging (`AicLog`) |
+| `src/AICompanionsAska/Diagnostics/` | Relatório de ambiente no boot |
 | `src/AICompanionsAska/AI/` | LLM, intenções, ordens (próximas fases) |
 | `src/AICompanionsAska/Voice/` | STT/TTS, microfone, playback (próximas fases) |
 | `src/AICompanionsAska/Companion/` | Recrutamento, perfil, memória (próximas fases) |
@@ -149,8 +151,8 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > (LM Studio + Qwen2.5-3B-Instruct) and **local speech** (Whisper + Kokoro). Built on ASKA's
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
-**Status:** `v0.1.0` — **scaffold**. The BepInEx plugin loads and logs the environment; chat,
-orders, LLM and voice arrive in later branches. No gameplay yet.
+**Status:** `v0.1.0` — **scaffold**. The BepInEx plugin builds and deploys; in-game loading is
+**not confirmed yet**. Chat, orders, LLM and voice arrive in later branches. No gameplay yet.
 
 ### Requirements
 

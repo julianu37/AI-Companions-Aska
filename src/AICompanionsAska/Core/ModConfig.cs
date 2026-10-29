@@ -38,89 +38,89 @@ internal static class ModConfig
         // General
         Enabled = config.Bind(
             "General", "Enabled", true,
-            "Liga/desliga o mod. Nesta versao 0.1.0 nao ha gameplay para desligar.");
+            "Turns the mod on/off. Reserved: there is no gameplay in 0.1.0.");
 
         VerboseLog = config.Bind(
             "General", "VerboseLog", true,
-            "Log detalhado (prompt/JSON/intencoes). Desligue antes de publicar.");
+            "Verbose logging (prompt/JSON/intents). Turn it off before a release.");
 
         Language = config.Bind(
             "General", "Language", "auto",
-            "Idioma do mod: auto (segue o jogo), pt-BR ou en.");
+            "Mod language: auto (follow the game), pt-BR or en.");
 
         // AI
         BaseUrl = config.Bind(
             "AI", "BaseUrl", "http://127.0.0.1:1234/v1",
-            "Endpoint OpenAI-compatible. Padrao: LM Studio local. Use 127.0.0.1, nao localhost.");
+            "OpenAI-compatible endpoint. Default: local LM Studio. Use 127.0.0.1, not localhost.");
 
         Model = config.Bind(
             "AI", "Model", "qwen2.5-3b-instruct",
-            "Identificador do modelo carregado no LM Studio.");
+            "Model identifier loaded in LM Studio.");
 
         ApiKey = config.Bind(
             "AI", "ApiKey", "",
-            "Chave do provedor. Vazia no LM Studio. Nunca commite este valor.");
+            "Provider API key. Empty for LM Studio. Never commit this value.");
 
         Temperature = config.Bind(
             "AI", "Temperature", 0.3f,
-            "Temperatura do LLM (0 = deterministico).");
+            "LLM temperature (0 = deterministic).");
 
         TimeoutSeconds = config.Bind(
             "AI", "TimeoutSeconds", 30,
-            "Timeout por requisicao ao LLM, em segundos.");
+            "Timeout per LLM request, in seconds.");
 
         ChatPrefix = config.Bind(
             "AI", "ChatPrefix", "/c",
-            "Prefixo que endereca uma mensagem ao companheiro no chat. Vazio = desligado.");
+            "Prefix that addresses a chat message to the companion. Empty = disabled.");
 
         AddressByName = config.Bind(
             "AI", "AddressByName", true,
-            "Tambem aceitar mensagens que comecam com o nome do companheiro.");
+            "Also accept messages that start with the companion name.");
 
         Memory = config.Bind(
             "AI", "Memory", 4,
-            "Quantas trocas recentes o companheiro lembra (0 = desligado, maximo 12).");
+            "How many recent exchanges the companion remembers (0 = off, max 12).");
 
         Personality = config.Bind(
             "AI", "Personality", "",
-            "Personalidade em texto livre (PT-BR). Vazio = padrao.");
+            "Free-text personality (PT-BR or EN). Empty = default.");
 
         // Voice
         VoiceEnabled = config.Bind(
             "Voice", "Enabled", false,
-            "Liga o push-to-talk (STT). Ainda nao implementado na 0.1.0.");
+            "Turns push-to-talk (STT) on. Not implemented in 0.1.0.");
 
         PushToTalkKey = config.Bind(
             "Voice", "PushToTalkKey", "V",
-            "Tecla de push-to-talk.");
+            "Push-to-talk key.");
 
         SttModel = config.Bind(
             "Voice", "SttModel", @"whisper\ggml-small-q5_1.bin",
-            "Caminho do modelo ggml do Whisper, relativo a pasta do plugin.");
+            "Whisper ggml model path, relative to the plugin folder.");
 
         TtsModel = config.Bind(
             "Voice", "TtsModel", @"tts\kokoro\model.int8.onnx",
-            "Caminho do modelo Kokoro, relativo a pasta do plugin.");
+            "Kokoro model path, relative to the plugin folder.");
 
         TtsVoice = config.Bind(
-            "Voice", "TtsVoice", 0,
-            "Voz Kokoro: 0 = automatica do idioma; 42 = pf_dora; 43 = pm_alex; 44 = pm_santa.");
+            "Voice", "TtsVoice", 42,
+            "Kokoro speaker id. 42 = pf_dora (pt-BR female), 43 = pm_alex, 44 = pm_santa.");
 
         TtsVolume = config.Bind(
             "Voice", "TtsVolume", 1.0f,
-            "Volume da voz do companheiro.");
+            "Companion speech volume.");
 
         TtsSpeed = config.Bind(
             "Voice", "TtsSpeed", 1.0f,
-            "Velocidade da voz (0.5 a 2.0).");
+            "Speech speed (0.5 to 2.0).");
 
         // UI
         PanelKey = config.Bind(
             "UI", "PanelKey", "I",
-            "Tecla do painel da IA (a partir da fase de UI).");
+            "AI panel key (from the UI phase).");
 
         ShowHud = config.Bind(
             "UI", "ShowHud", true,
-            "Mostrar o HUD do companheiro (a partir da fase de UI).");
+            "Show the companion HUD (from the UI phase).");
     }
 }

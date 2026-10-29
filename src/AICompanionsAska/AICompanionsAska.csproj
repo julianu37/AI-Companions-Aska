@@ -63,6 +63,13 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="CheckGameReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(BepInExDir)\core\BepInEx.Core.dll')"
+           Text="BepInEx.Core.dll nao encontrado em &quot;$(BepInExDir)\core&quot;. Instale o BepInEx 6 IL2CPP e confira AskaDir em Environment.props." />
+    <Error Condition="!Exists('$(BepInExDir)\interop\Assembly-CSharp.dll')"
+           Text="Interop assemblies nao encontradas em &quot;$(BepInExDir)\interop&quot;. Abra o ASKA uma vez com o BepInEx instalado para gera-las." />
+  </Target>
+
   <Target Name="DeployToPlugins" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
     <MakeDir Directories="$(DeployDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="false" />

@@ -13,33 +13,69 @@ internal static class EnvironmentReport
 {
     internal static void Log()
     {
+        var log = Plugin.LogSource;
+
+        Safe(log, "mod", () => $"{PluginInfo.Name} {PluginInfo.Version}");
+        Safe(log, "Unity", () => $"{Application.unityVersion} | produto {Application.productName} {Application.version}");
+        Safe(log, "BepInEx", () => $"{Paths.BepInExVersion} | root {Paths.BepInExRootPath}");
+        Safe(log, "jogo", () => Paths.GameRootPath);
+        Safe(log, "plugin", () => Plugin.PluginDirectory);
+
+        string bepInExRoot = SafeValue(() => Paths.BepInExRootPath, string.Empty);
+        string interop = string.IsNullOrEmpty(bepInExRoot)
+            ? string.Empty
+            : Path.Combine(bepInExRoot, "interop");
+        Safe(log, "interop", () => DescribeInterop(interop));
+
         try
         {
-            var log = Plugin.LogSource;
-            string gameRoot = Paths.GameRootPath ?? "(desconhecido)";
-            string bepInExRoot = Paths.BepInExRootPath ?? "(desconhecido)";
-            string interop = Path.Combine(bepInExRoot, "interop");
-            string pluginDir = Plugin.PluginDirectory;
-
-            log.LogInfo($"[AIC] {PluginInfo.Name} {PluginInfo.Version}");
-            log.LogInfo($"[AIC] Unity {Application.unityVersion} | produto {Application.productName} {Application.version}");
-            log.LogInfo($"[AIC] BepInEx {Paths.BepInExVersion} | root {bepInExRoot}");
-            log.LogInfo($"[AIC] jogo {gameRoot}");
-            log.LogInfo($"[AIC] plugin {pluginDir}");
-            log.LogInfo($"[AIC] interop {(Directory.Exists(interop) ? "ok" : "AUSENTE")}: {interop}");
-
-            try
-            {
-                log.LogInfo($"[AIC] SO {SystemInfo.operatingSystem} | CPU {SystemInfo.processorType} | GPU {SystemInfo.graphicsDeviceName}");
-            }
-            catch (Exception ex)
-            {
-                log.LogWarning($"[AIC] SystemInfo indisponivel: {ex.GetType().Name}: {ex.Message}");
-            }
+            log.LogInfo($"[AIC] SO {SystemInfo.operatingSystem} | CPU {SystemInfo.processorType} | GPU {SystemInfo.graphicsDeviceName}");
         }
         catch (Exception ex)
         {
-            Plugin.LogSource.LogError($"[AIC] falha no relatorio de ambiente: {ex}");
+            log.LogWarning($"[AIC] SystemInfo indisponivel: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static string DescribeInterop(string interop)
+    {
+        if (string.IsNullOrEmpty(interop))
+            return "AUSENTE (BepInExRootPath vazio)";
+
+        if (!Directory.Exists(interop))
+            return $"AUSENTE: {interop}";
+
+        string asm = Path.Combine(interop, "Assembly-CSharp.dll");
+        string mscorlib = Path.Combine(interop, "Il2Cppmscorlib.dll");
+        bool hasAsm = File.Exists(asm);
+        bool hasMscorlib = File.Exists(mscorlib);
+
+        return hasAsm && hasMscorlib
+            ? $"ok: {interop}"
+            : $"INCOMPLETO: {interop} (Assembly-CSharp={hasAsm}, Il2Cppmscorlib={hasMscorlib})";
+    }
+
+    private static void Safe(BepInEx.Logging.ManualLogSource log, string area, Func<string> value)
+    {
+        try
+        {
+            log.LogInfo($"[AIC] {area} {value()}");
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning($"[AIC] {area} indisponivel: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static string SafeValue(Func<string> value, string fallback)
+    {
+        try
+        {
+            return value() ?? fallback;
+        }
+        catch
+        {
+            return fallback;
         }
     }
 }

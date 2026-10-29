@@ -30,6 +30,7 @@ public sealed class Plugin : BasePlugin
         ModConfig.Bind(Config);
         EnvironmentReport.Log();
 
+        LogSource.LogInfo($"[AIC] Enabled={ModConfig.Enabled.Value} (reserved; no gameplay in 0.1.0).");
         LogSource.LogInfo($"[AIC] {PluginInfo.Name} loaded successfully.");
     }
 

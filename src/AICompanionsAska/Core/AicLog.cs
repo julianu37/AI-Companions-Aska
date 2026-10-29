@@ -15,8 +15,11 @@ internal static class AicLog
 
     internal static void Debug(string message)
     {
+        // LogInfo instead of LogDebug: BepInEx's disk log filters Debug out by
+        // default, which would make VerboseLog silently useless. The volume is
+        // controlled by the VerboseLog config gate itself.
         if (ModConfig.VerboseLog is { Value: true })
-            Plugin.LogSource.LogDebug($"[AIC] {message}");
+            Plugin.LogSource.LogInfo($"[AIC][DEBUG] {message}");
     }
 
     internal static void Flow(string area, string message) =>

@@ -38,5 +38,5 @@ que o ASKA já sabe fazer (seguir, coletar, lutar, equipar, carregar) para cumpr
 ## Sucesso (definição)
 
 O jogador abre o ASKA, recruta um villager, digita **“segue”** ou segura **V** e fala
-**“colete 10 madeiras”**, e o villager **faz** — com uma resposta curta e falada — sem
+**“colete 10 de madeira”**, e o villager **faz** — com uma resposta curta e falada — sem
 travar, sem dessincronizar o save e sem sair do mundo. Em PT-BR e em inglês.
