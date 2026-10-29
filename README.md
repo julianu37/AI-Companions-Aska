@@ -10,8 +10,8 @@
 
 **Status:** `v0.4.0` — **companion chat reply**. O plugin captura `/c ...` ou
 `Thorin, ...`, chama o LM Studio local (`qwen2.5-3b-instruct`) e o companheiro **responde no
-chat com o próprio nome** (`Thorin: ...`). O self-test confirmou o texto; a linha visual em um
-mundo está **pendente de confirmação**. Ainda **não executa ordens**, não tem voz/UI.
+chat com o próprio nome** (`Thorin: ...`). **Confirmado em jogo em 2026-10-29**; ainda **não
+executa ordens**, não tem voz/UI.
 
 ---
 
@@ -159,9 +159,8 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 
 **Status:** `v0.4.0` — **companion chat reply**. The plugin captures `/c ...` or
 `Thorin, ...`, calls local LM Studio (`qwen2.5-3b-instruct`) and the companion **replies in
-chat under its own name** (`Thorin: ...`). The self-test confirmed the text; the visual chat
-line in a world is **pending confirmation**. It does **not execute orders**, and has no
-voice/UI yet.
+chat under its own name** (`Thorin: ...`). **Confirmed in game on 2026-10-29**; it does **not
+execute orders** yet and has no voice/UI.
 
 ### Requirements
 

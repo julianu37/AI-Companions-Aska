@@ -25,11 +25,10 @@ versionamento semântico (`MAJOR.MINOR.PATCH`).
   replicada.
 - O `ChatMenu` só é capturado quando o jogador envia uma mensagem (prefix); não há busca de
   cena (`FindObjectsByType(Type, ...)` aborta o load do plugin — dead-end #19).
-- **Self-test** com `AI.SelfTest=true` (`Thorin, bom dia`) confirmou o endereçamento por nome,
-  o intent (`action=none`) e o texto de resposta:
-  `[AIC][REPLY] (sem ChatMenu) Thorin: Bom dia! Como posso ajudar?`. A linha visual no chat em
-  um mundo real está **pendente de confirmação**; ela só existe depois que o `ChatMenu` é
-  capturado no primeiro envio.
+- **Confirmado em jogo em 2026-10-29:** `Thorin, bom dia` gerou
+  `[AIC][REPLY] Thorin: Bom dia! Como posso ajudar?` e a linha apareceu no chat;
+  `Thorin, vem comigo` devolveu `action=come`. O `ChatMenu` foi capturado no primeiro envio.
+  Evidência: `docs/re/chat-reply-verification.md`.
 - Ainda **não executa ordens**, não tem voz nem UI.
 
 ## [0.3.0] — 2026-10-28

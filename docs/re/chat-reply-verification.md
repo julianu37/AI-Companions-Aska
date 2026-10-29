@@ -46,14 +46,41 @@ O `NameAddressing` aceita `Thorin, ...` / `Thorin: ...` / `Thorin ...`, exige o 
 - O `OnSetup` foi patchado, mas **não disparou no menu**; não havia `ChatMenu` para a linha
   visual. Por isso o log diz `(sem ChatMenu)`.
 
-## 3. O que falta (única coisa)
+## 3. Confirmação em jogo (2026-10-29)
 
-- **Linha visual no chat em um mundo:** o `ChatMenu` é capturado no primeiro
-  `_OnTextInputSubmit` (quando o jogador envia a mensagem). Aí o `CompanionChatReply` chama
-  `ChatMenu._AddNewTextLine(nome, reply, cor, true, false)` por reflexão. O texto/resposta e o
-  nome já estão provados; falta ver a linha `Thorin: ...` aparecer no chat.
-- Como o launch automatizado via `steam://` desta máquina falha no PlayFab
-  (`LoginWithSteam: Invalid input parameters`), o teste tem que ser na sessão normal do Steam.
+O jogador carregou o save, enviou `Thorin, bom dia` e o chat respondeu. O log mostra a linha
+visual sendo adicionada **sem** `(sem ChatMenu)`:
+
+```text
+[AIC][CHAT] ChatMenu instance captured (reply target ready).
+[AIC][PATCH] ChatMenu._OnTextInputSubmit(string) fired (first call; string arg received).
+[AIC][CHAT] addressed to Thorin from ChatMenu._OnTextInputSubmit (7 chars): "bom dia"
+[AIC][PATCH] NetworkChatSession.SendInGameChatMessage(string) fired ...
+[AIC][CHAT] duplicate from NetworkChatSession.SendInGameChatMessage ignored (7 chars).
+[AIC][LLM] intent em 3890 ms (mode=JsonSchema): action=none ... reply="Bom dia! Como posso ajudar?"
+[AIC][REPLY] Thorin: Bom dia! Como posso ajudar?
+```
+
+O jogador confirmou: **“está respondendo no chat do jogo”**. Uma segunda mensagem
+(`Thorin, vem comigo`) devolveu `action=come` e `[AIC][REPLY] Thorin: Acompanho-te.`; o
+`ChatCapture` também ignorou mensagens sem nome/prefixo.
+
+## 4. Estado
+
+- `ChatMenu` capturado no primeiro envio (`_OnTextInputSubmit`/`OnSetup`).
+- `_AddNewTextLine` por reflexão funcionou (a linha `Thorin: ...` apareceu).
+- A resposta é **local** (single-player); co-op ainda não replica.
+- O save de teste tem 5 companions; Thorin e Maria foram renomeados para o desenvolvimento.
+  O registro automático de nomes via `PlayerParty` é o próximo passo.
+
+## 5. O que falta
+
+- **Ordens:** o LLM entende `follow`/`stop`/`come`, mas nada é executado; próximo branch
+  `feat/recruit-follow`.
+- **Registro automático:** hoje `AI.CompanionNames` é configurado à mão; a `PlayerParty` deve
+  registrar os nomes dos companions reais.
+- **Co-op:** a linha de resposta é local.
+- **Voz/UI:** não existem.
 
 ## 4. Como testar
 

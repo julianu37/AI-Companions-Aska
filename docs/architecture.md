@@ -262,12 +262,10 @@ Seções iniciais:
 - **LLM implementado:** `LlmClient` (OpenAI-compatible, `json_schema` estrito), `LlmIntent`
   (parser tolerante), `CompanionPrompt` (identidade + persona + contrato, idioma explícito),
   `CompanionBrain` (fila + uma requisição por vez + drenagem na main thread) e self-test.
-- **Resposta no chat por nome:** `AI.CompanionNames` (default `Thorin`), `AI.AddressByName`
-  (default true), `ChatMenuCapture` (instância do `ChatMenu` via `__instance`) e
-  `CompanionChatReply` (`_AddNewTextLine`). O self-test confirma o texto
-  `[AIC][REPLY] (sem ChatMenu) Thorin: ...`; a **linha visual em um mundo** segue pendente de
-  confirmação.
+- **Resposta no chat por nome confirmada em jogo (2026-10-29):** `Thorin, bom dia` gerou
+  `[AIC][REPLY] Thorin: ...` e a linha apareceu no chat; `Thorin, vem comigo` devolveu
+  `action=come`. `ChatMenuCapture` + `CompanionChatReply` funcionaram.
 - **Ainda não executa ordens**, não tem voz nem UI. `FindObjectsByType` não é usado (aborta o
   load; dead-end #19).
-- **Pendente:** teste em mundo de `Thorin, ...`/`/c ...` -> linha `Thorin: ...`; e o
-  recrutamento/PlayerParty na próxima branch.
+- **Próximo:** registrar os nomes da `PlayerParty` (o save de teste tem 5 companions, incluindo
+  Thorin e Maria) e executar `follow`/`stop`/`come` na branch `feat/recruit-follow`.
