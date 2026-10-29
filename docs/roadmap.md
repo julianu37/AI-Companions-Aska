@@ -1,6 +1,6 @@
 # Roadmap — AI Companions - ASKA
 
-Status: **M0 implementado — carregamento pendente de confirmação em jogo**. As fases seguintes
+Status: **M0 concluído — carregamento confirmado em jogo em 2026-10-28**. As fases seguintes
 são branches independentes, mergeadas na `main` só depois de build + revisão + confirmação em
 jogo.
 
@@ -16,8 +16,9 @@ jogo.
 - [x] Documentação de visão, arquitetura, design, branches, testes e RE.
 
 **Aceite:** `dotnet build` passa; o jogo carrega o plugin e o `LogOutput.log` mostra
-`AI Companions - ASKA 0.1.0` + `loaded successfully`. **Status:** build OK; carregamento
-**pendente de confirmação em jogo** (o `.cfg` do mod ainda não foi criado nesta máquina).
+`AI Companions - ASKA 0.1.0` + `loaded successfully`. **Status:** confirmado em jogo em
+2026-10-28; o `.cfg` do mod foi criado com as seções esperadas. Evidência:
+[`docs/re/m0-load-verification.md`](re/m0-load-verification.md).
 
 ## M1 — Chat + LLM (ordem de seguir)
 

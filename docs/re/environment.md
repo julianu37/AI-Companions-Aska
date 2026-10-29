@@ -15,6 +15,7 @@ update do jogo invalida estes números.
 | `lastupdated` | `1793225737` (epoch) | idem |
 | Instalação | `C:\Program Files (x86)\Steam\steamapps\common\ASKA` | `installdir` |
 | Executável | `Aska.exe` | — |
+| Versão do jogo | `Application.version = 0.4`; `Player.log`: `1.48.0910261842._PC.Release` | log do jogo |
 | Engine | Unity **6000.3.12f1** | `LogOutput.log` |
 | Scripting | **IL2CPP** | `GameAssembly.dll`, `Aska_Data\il2cpp_data` |
 | Metadata | **v39** (`AF 1B B1 FA`, versão `0x27`) | header do `global-metadata.dat` |

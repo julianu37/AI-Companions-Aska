@@ -18,7 +18,8 @@ como ler o log e o que bloqueia um release.
 
 ## 2. Teste de carregamento (todas as fases)
 
-1. Abra o jogo e espere chegar ao menu.
+1. Abra o jogo **pelo Steam** e espere chegar ao menu. (Iniciar o `Aska.exe` direto carrega o
+   plugin, mas o login do Steam falha e o jogo pode sair com código 53; use o Steam para jogar.)
 2. Abra `BepInEx\LogOutput.log`.
 3. Confirme:
    - a linha do BepInEx com a versão `6.0.0-be.791`;
@@ -30,6 +31,10 @@ como ler o log e o que bloqueia um release.
 **Falha de carregamento:** procure `[Error]`, `Exception`, `MissingMethodException`,
 `FileLoadException`, `coreclr.dll+0x1d1fdd` (crash nativo) e a última linha antes do crash.
 Anexe o log ao issue/handoff.
+
+**Se aparecer `0 plugins to load`:** confirme que o jogo foi iniciado com o working directory
+na pasta do ASKA (ou pelo Steam), apague `BepInEx\cache\chainloader_typeloader.dat` e relance.
+O cache de descoberta pode ficar velho depois de mover/adicionar DLLs.
 
 ## 3. Matriz por fase
 
