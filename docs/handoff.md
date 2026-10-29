@@ -44,6 +44,7 @@ jogo**, e o probe da party precisa ser reobservado depois da correção.
 | Item | Status |
 |---|---|
 | v0.4.0: chat, nome, LLM, resposta no chat | **confirmado em jogo** (2026-10-29) |
+| Build 0.5.0 carrega com o probe poll-only | **confirmado em jogo** (2026-10-29 19:22, menu): `Loading [AI Companions - ASKA 0.5.0]`, `probe armed (poll-only)`, `state=NoParty`, sem exceção e sem dump novo |
 | Unlock pós-load arma e faz poll sem crashar | **confirmado em jogo** (2026-10-29 18:43, `state=NoHouse` no menu) |
 | `FindAnyObjectByType<PlayerHouse>()` funciona neste build | **confirmado** (não houve `Disarm`/`MissingMethodException`) |
 | Escrita `False -> true (trigger=post-load)` no save | **pendente de confirmação** |
