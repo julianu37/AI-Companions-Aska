@@ -7,5 +7,5 @@ internal static class PluginInfo
 {
     internal const string Guid = "julianu37.AICompanionsAska";
     internal const string Name = "AI Companions - ASKA";
-    internal const string Version = "0.3.0";
+    internal const string Version = "0.4.0";
 }

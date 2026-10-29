@@ -64,12 +64,16 @@ Regras:
 | Arquivo | Responsabilidade | Status |
 |---|---|---|
 | `Patches/ChatPatch.cs` | Harmony em `ChatMenu._OnTextInputSubmit(string)`, `ChatMenu.SendPlayerMessage(string)` e `NetworkChatSession.SendInGameChatMessage(string)`; prefix curto, fire-verify por alvo, `Apply`/`Unapply` idempotentes | implementado (`feat/chat-hook`) |
-| `Chat/ChatCommand.cs` | Struct `Raw`/`Text`/`Addressed`/`Source`/`TimestampUtc` | implementado |
-| `Chat/ChatAddressing.cs` | `TryParse(raw, out command)`: trim, prefixo `AI.ChatPrefix`, limpeza | implementado (só prefixo) |
-| `Chat/ChatCapture.cs` | Porta única das mensagens endereçadas: log + `Last` | implementado (só log/`Last`) |
+| `Chat/ChatCommand.cs` | Struct `Raw`/`Text`/`Addressed`/`Source`/`TimestampUtc`/`CompanionName` | implementado |
+| `Chat/ChatAddressing.cs` | `TryParse(raw, out command)`: prefixo `AI.ChatPrefix` ou nome do registro | implementado |
+| `Chat/NameAddressing.cs` | Regex-free: nome completo + separador (`,` `:` espaço); nome mais longo vence | implementado |
+| `Chat/CompanionRegistry.cs` | Lista de nomes (`AI.CompanionNames`); primeiro = destino de `/c` | implementado |
+| `Chat/ChatCapture.cs` | Porta única da mensagem endereçada: log, dedupe, evento `Captured` | implementado |
+| `Chat/ChatMenuCapture.cs` | Guarda a instância do `ChatMenu` capturada no prefix (`__instance`) | implementado |
+| `Chat/CompanionChatReply.cs` | Resposta local no chat via `ChatMenu._AddNewTextLine` (reflexão) | implementado |
 | `Voice/VoiceInput.cs` | Microfone 16 kHz mono, trim, WAV em memória | planejado |
 | `Voice/WhisperStt.cs` | Transcrição in-process, fila, modelo único | planejado |
-| `AI/CompanionChat.cs` | Normaliza prefixo/nome, monta prompt, submete | planejado |
+| `AI/CompanionBrain.cs` | Fila + uma requisição por vez + drain das respostas | implementado |
 
 **Fluxo implementado (captura):**
 
@@ -77,11 +81,15 @@ Regras:
 ChatMenu._OnTextInputSubmit(string)                [jogo, main thread]
 ChatMenu.SendPlayerMessage(string)                 [jogo, main thread]
 NetworkChatSession.SendInGameChatMessage(string)   [jogo, main thread]
-  → ChatPatch.Prefix(string __0, MethodBase)       [try/catch; nada escapa]
+  → ChatPatch.Prefix(object __instance, string __0, MethodBase)  [try/catch; nada escapa]
+      → se o alvo for ChatMenu: ChatMenuCapture.Set(__instance)
       → fire-verify por alvo                       (antes do gate Enabled)
       → ModConfig.Enabled?               false → return
       → ChatAddressing.TryParse(__0)     false → [AIC][CHAT] ignored (N chars) se VerboseLog
-      → ChatCapture.Submit(command, src) true  → [AIC][CHAT] addressed from <alvo> (N chars): "texto"
+      → ChatCapture.Submit(command, src) true  → [AIC][CHAT] addressed to <nome> from <alvo> ...
+          → CompanionBrain (fila) → LlmClient → Drain (main thread)
+              → CompanionChatReply.Say(nome, intent.reply)
+                  → ChatMenu._AddNewTextLine(nome, reply, cor, true, false)
 ```
 
 - O patch **não** consome a mensagem: o prefix retorna `void`, então a mensagem original
@@ -97,11 +105,11 @@ reage a mensagens **endereçadas**:
 
 - **prefixo configurável** (`AI.ChatPrefix`, default `/c`; case-insensitive, trimado, e
   precisa terminar a mensagem ou ser seguido de espaço — `/casa` não é comando);
-  **vazio = captura desligada**;
-- nome do companheiro no início (`Thorin, segue`) — **reservado**: `AI.AddressByName` existe
-  na config (default **false**) mas **não** captura nada ainda (TODO em `ChatAddressing.TryParse`).
-  Só deve ser ligado quando houver lista de companheiros recrutados e uma regra conservadora
-  (nome completo + separador), para não sequestrar o chat em co-op.
+  **vazio = captura por prefixo desligada**. O prefixo vai para o **primeiro** nome de
+  `AI.CompanionNames`;
+- **nome do companheiro no início** (`Thorin, segue` / `Thorin: segue` / `Thorin segue`) —
+  `AI.AddressByName` default **true**; o nome precisa ser **completo** e seguido de separador.
+  Só nomes de `AI.CompanionNames` são aceitos, para não sequestrar o chat em co-op.
 
 Sem prefixo/nome, a mensagem é ignorada (só o comprimento aparece no log com `VerboseLog`).
 
@@ -198,7 +206,7 @@ Seções iniciais:
 | Seção | Chaves |
 |---|---|
 | `General` | `Enabled`, `VerboseLog`, `Language` |
-| `AI` | `Enabled`, `StructuredOutput`, `MaxTokens`, `SelfTest`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`, `TimeoutSeconds`, `ChatPrefix`, `AddressByName`, `Memory`, `Personality` |
+| `AI` | `Enabled`, `StructuredOutput`, `MaxTokens`, `SelfTest`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`, `TimeoutSeconds`, `ChatPrefix`, `AddressByName`, `CompanionNames`, `ReplyInChat`, `Memory`, `Personality` |
 | `Voice` | `Enabled`, `PushToTalkKey`, `SttModel`, `TtsModel`, `TtsVoice`, `TtsVolume`, `TtsSpeed` |
 | `UI` | `PanelKey`, `ShowHud` |
 
@@ -244,7 +252,7 @@ Seções iniciais:
 - Sem executar comandos do modelo além da lista fechada de ações.
 - Conteúdo do jogo/modelo é **dado**, nunca instrução.
 
-## 10. Estado atual (v0.3.0 — `feat/llm-intent`)
+## 10. Estado atual (v0.4.0 — `feat/named-chat-reply`)
 
 - `Plugin.Load()` loga ambiente, aplica o patch de chat, registra o `CompanionBrainRunner` e
   assina `ChatCapture.Captured`.
@@ -252,13 +260,14 @@ Seções iniciais:
   `SendInGameChatMessage` também disparou e o dedupe descartou a segunda captura; sem prefixo
   foi ignorado. Evidência: `docs/re/chat-hook-verification.md`.
 - **LLM implementado:** `LlmClient` (OpenAI-compatible, `json_schema` estrito), `LlmIntent`
-  (parser tolerante), `CompanionPrompt` (persona + contrato, idioma do jogo), `CompanionBrain`
-  (fila + uma requisição por vez + drenagem na main thread) e self-test
-  (`AI.SelfTest` / `AIC_LLM_SELFTEST=1`).
-- **Cadeia confirmada:** self-test injeta `segue` no `ChatCapture`, o LLM responde
-  `action=follow`/`come` em `mode=JsonSchema` e o intent é logado. Evidência:
-  `docs/re/llm-intent-verification.md`.
-- **Ainda não executa ordens**, não responde no chat/balão, não tem voz nem UI. `AddressByName`
-  continua reservado (default false).
-- **Pendente:** teste integrado `/c ...` em um mundo com o LLM ligado; será feito na branch
-  `feat/recruit-follow`.
+  (parser tolerante), `CompanionPrompt` (identidade + persona + contrato, idioma explícito),
+  `CompanionBrain` (fila + uma requisição por vez + drenagem na main thread) e self-test.
+- **Resposta no chat por nome:** `AI.CompanionNames` (default `Thorin`), `AI.AddressByName`
+  (default true), `ChatMenuCapture` (instância do `ChatMenu` via `__instance`) e
+  `CompanionChatReply` (`_AddNewTextLine`). O self-test confirma o texto
+  `[AIC][REPLY] (sem ChatMenu) Thorin: ...`; a **linha visual em um mundo** segue pendente de
+  confirmação.
+- **Ainda não executa ordens**, não tem voz nem UI. `FindObjectsByType` não é usado (aborta o
+  load; dead-end #19).
+- **Pendente:** teste em mundo de `Thorin, ...`/`/c ...` -> linha `Thorin: ...`; e o
+  recrutamento/PlayerParty na próxima branch.

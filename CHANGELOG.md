@@ -3,6 +3,35 @@
 Todas as mudanças relevantes do projeto. Formato baseado em Keep a Changelog;
 versionamento semântico (`MAJOR.MINOR.PATCH`).
 
+## [0.4.0] — 2026-10-28
+
+### Adicionado
+
+- **Endereçamento por nome:** `AI.AddressByName` (default true) aceita
+  `Thorin, ...` / `Thorin: ...`; o nome tem que ser completo e seguir um separador.
+- **Registro de nomes:** `AI.CompanionNames` (default `Thorin`, lista separada por vírgula);
+  o primeiro nome é o destino padrão de `/c ...`.
+- **Resposta no chat:** `ChatMenuCapture` guarda a instância do `ChatMenu` no prefix; o
+  `CompanionChatReply` adiciona a fala com o nome do companheiro via
+  `_AddNewTextLine(userName, message, color, true, false)`.
+- **Prompt com identidade:** o system prompt passa a ser `Você é Thorin, <persona>`; o modelo
+  recebe uma instrução explícita de idioma (PT-BR/EN).
+- `AI.ReplyInChat` (default true) liga/desliga a linha no chat.
+- Harness de nomes: **41/41** (8 casos novos de `NameAddressing`).
+
+### Notas
+
+- A resposta no chat é **local** (`_AddNewTextLine`, `isMe=false`); em co-op ainda não é
+  replicada.
+- O `ChatMenu` só é capturado quando o jogador envia uma mensagem (prefix); não há busca de
+  cena (`FindObjectsByType(Type, ...)` aborta o load do plugin — dead-end #19).
+- **Self-test** com `AI.SelfTest=true` (`Thorin, bom dia`) confirmou o endereçamento por nome,
+  o intent (`action=none`) e o texto de resposta:
+  `[AIC][REPLY] (sem ChatMenu) Thorin: Bom dia! Como posso ajudar?`. A linha visual no chat em
+  um mundo real está **pendente de confirmação**; ela só existe depois que o `ChatMenu` é
+  capturado no primeiro envio.
+- Ainda **não executa ordens**, não tem voz nem UI.
+
 ## [0.3.0] — 2026-10-28
 
 ### Adicionado

@@ -67,7 +67,8 @@ public sealed class Plugin : BasePlugin
 
         LogSource.LogInfo(
             $"[AIC] Enabled={ModConfig.Enabled.Value} | VerboseLog={ModConfig.VerboseLog.Value} | chat hook applied={ChatPatch.Applied} | " +
-            $"ChatPrefix=\"{ChatAddressing.GetPrefix()}\" | AddressByName={ModConfig.AddressByName.Value} (reserved) | " +
+            $"ChatPrefix=\"{ChatAddressing.GetPrefix()}\" | AddressByName={ModConfig.AddressByName.Value} | " +
+            $"CompanionNames=\"{ModConfig.CompanionNames.Value}\" | ReplyInChat={ModConfig.ReplyInChat.Value} | " +
             $"AI.Enabled={ModConfig.AiEnabled.Value} | model={ModConfig.Model.Value} | " +
             $"url={ModConfig.BaseUrl.Value} | structured={ModConfig.StructuredOutput.Value} | " +
             $"brain runner={(_brainReady ? "ok" : "failed")}.");

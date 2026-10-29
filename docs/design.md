@@ -35,19 +35,32 @@ limite de companheiros, e o que acontece se o villager morrer.
 ## D2 — Chat endereçado, não sequestro do chat
 
 **Decisão:** o mod só processa mensagens com **prefixo** (`/c ...`) ou **nome do companheiro**
-no início (`Thorin, segue`). Sem isso, ignora.
+no início (`Thorin, ...` / `Thorin: ...` / `Thorin ...`). Sem isso, ignora.
+
+**Implementado na v0.4.0:**
+
+- `AI.ChatPrefix` default `/c`; vazio desliga a captura por prefixo.
+- `AI.CompanionNames` default `Thorin` (lista separada por vírgula); o primeiro nome é o
+  destino de `/c ...`.
+- `AI.AddressByName` default **true**: o nome tem que ser **completo** e seguido de um
+  separador (vírgula, dois-pontos, hífen, espaço). `Thorinzinho` não casa com `Thorin`.
+- O **registro** ainda é configurado; quando o recrutamento via `PlayerParty` entrar, os
+  villagers recrutados serão adicionados a ele.
+- A resposta é uma linha **local** no chat (`ChatMenu._AddNewTextLine`), com o nome como autor;
+  em co-op ela ainda não é replicada.
 
 **Por quê:**
 
 - O chat do ASKA é o chat da sessão (Photon), usado por jogadores em co-op.
 - Processar todas as mensagens causaria respostas indesejadas, custo de LLM e confusão.
 - O prefixo dá controle e o nome permite conversa natural.
+- A lista de nomes evita sequestrar uma mensagem que só começa com uma palavra qualquer.
 
 **Alternativas:** capturar tudo (rejeitado); janela de chat própria (mais trabalho de UI, mas
 pode virar opção no futuro).
 
-**Em aberto:** o prefixo padrão (`/c`?), se o nome pode ser usado sem vírgula, e se a mensagem
-deve ser removida do chat global em co-op.
+**Em aberto:** se a mensagem endereçada deve ser removida do chat global em co-op; como o
+cliente vê a resposta do companheiro (RPC) na fase de rede.
 
 ---
 

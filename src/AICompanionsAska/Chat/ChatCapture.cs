@@ -94,9 +94,9 @@ internal static class ChatCapture
             // O texto do jogador só vai para o log em modo verbose; no release
             // apenas o comprimento, para não vazar conversa em bug reports.
             if (ModConfig.VerboseLog is { Value: true })
-                AicLog.Flow("CHAT", $"addressed from {source} ({command.Text.Length} chars): \"{ForLog(command.Text)}\"");
+                AicLog.Flow("CHAT", $"addressed to {command.CompanionName} from {source} ({command.Text.Length} chars): \"{ForLog(command.Text)}\"");
             else
-                AicLog.Flow("CHAT", $"addressed from {source} ({command.Text.Length} chars)");
+                AicLog.Flow("CHAT", $"addressed to {command.CompanionName} from {source} ({command.Text.Length} chars)");
 
             try
             {

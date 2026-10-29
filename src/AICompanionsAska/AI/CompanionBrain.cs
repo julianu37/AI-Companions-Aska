@@ -166,6 +166,10 @@ internal static class CompanionBrain
                 else
                     AicLog.Flow("LLM", $"intent em {result.ElapsedMs} ms (mode={result.Mode}): {result.Intent.Summary}");
 
+                // Resposta no chat, com o nome do companheiro como autor.
+                if (!string.IsNullOrWhiteSpace(result.Intent.Reply))
+                    CompanionChatReply.Say(result.Command.CompanionName, result.Intent.Reply);
+
                 // Proxima fase: CompanionOrders.Run(result.Intent, result.Command.Text)
                 continue;
             }
@@ -201,7 +205,18 @@ internal static class CompanionBrain
 
         AicLog.Flow(
             "LLM-SELFTEST",
-            $"enfileirando 'segue' via ChatCapture (language={CompanionPrompt.ResolveLanguage()}, model={ModConfig.Model.Value})");
-        ChatCapture.Submit(ChatCommand.FromChat("/c segue", "segue"), "selftest");
+            $"enfileirando 'Thorin, bom dia' via ChatAddressing (language={CompanionPrompt.ResolveLanguage()}, model={ModConfig.Model.Value})");
+
+        if (!ChatAddressing.TryParse("Thorin, bom dia", out ChatCommand command))
+        {
+            AicLog.Warn(
+                $"[LLM-SELFTEST] ChatAddressing nao reconheceu 'Thorin, bom dia' " +
+                $"(AddressByName={ModConfig.AddressByName.Value}, CompanionNames=\"{ModConfig.CompanionNames.Value}\").");
+            return;
+        }
+
+        // Sem busca de cena: o ChatMenu só é capturado pelo prefix do chat.
+        // No boot, o reply path loga "(sem ChatMenu)" — o teste real é em mundo.
+        ChatCapture.Submit(command, "selftest-name");
     }
 }

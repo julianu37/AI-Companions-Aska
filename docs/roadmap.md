@@ -23,7 +23,7 @@ jogo.
 ## M1 — Chat + LLM (ordem de seguir)
 
 **Branches:** `feat/chat-hook` (confirmada), `feat/llm-intent` (confirmada via self-test),
-`feat/recruit-follow` (próxima).
+`feat/named-chat-reply` (resposta por nome), `feat/recruit-follow` (próxima).
 
 **Status:** captura e entendimento prontos; a execução da ordem no villager é o que falta.
 
@@ -35,11 +35,27 @@ jogo.
   `LlmClient` + `CompanionPrompt`; `json_schema` estrito aceito pelo `qwen2.5-3b-instruct`.
 - [x] Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
   `LlmIntent` + harness de 33 casos; cadeia confirmada com self-test em jogo.
+- [x] Responder no **chat** pelo nome do companheiro (`Thorin: ...`), via LLM.
+  Implementado em `feat/named-chat-reply`; self-test confirma o texto; linha visual em mundo
+  **pendente de confirmação**.
 - [ ] Recrutar um villager para a `PlayerParty` e executar `follow`, `stop`, `come`.
-- [ ] Responder no chat e no balão nativo (`DialogueMenu`).
+- [ ] Responder no **balão nativo** (`DialogueMenu`).
 
 **Aceite:** em jogo, `segue` faz o villager seguir; `para` para; uma pergunta simples recebe
 uma resposta de conversa; o jogo não trava e o log mostra a intenção.
+
+## M1.5 — Resposta no chat por nome (v0.4.0)
+
+**Branch:** `feat/named-chat-reply`.
+
+- `AI.CompanionNames` (default `Thorin`) e `AI.AddressByName` (default true).
+- Endereçamento `Thorin, ...` / `Thorin: ...` / `Thorin ...`; `/c ...` vai para o nome padrão.
+- Prompt com identidade (`Você é Thorin, ...`) e idioma explícito.
+- Resposta local no chat via `ChatMenu._AddNewTextLine`, com o nome como autor.
+
+**Aceite:** em um mundo, `Thorin, bom dia` gera uma linha `Thorin: ...` no chat; `/c segue`
+também responde; mensagem sem nome/prefixo continua ignorada. A linha visual é local
+(single-player); co-op fica para a fase de rede.
 
 ## M2 — Conversa, persona e memória
 

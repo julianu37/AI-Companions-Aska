@@ -206,7 +206,32 @@ Sintomas: processo morre, `LogOutput.log` termina sem stack gerenciada, WER apon
    um wrapper velho.
 4. Remova o patch/caminho e registre aqui.
 
-## 19. Como adicionar um dead end
+## 19. `FindObjectsByType(Type, ...)` aborta o load do plugin
+
+**Status:** local (2026-10-28, ASKA 0.4/Unity 6000.3.12f1).
+
+**Sintoma:**
+
+```text
+[Error : BepInEx] Error loading [AI Companions - ASKA 0.3.0]:
+System.MissingMethodException: Method not found:
+'UnityEngine.Object[] UnityEngine.Object.FindObjectsByType(System.Type,
+ UnityEngine.FindObjectsInactive, UnityEngine.FindObjectsSortMode)'.
+```
+
+O plugin **inteiro** não carrega (nem o chat hook, nem o brain).
+
+**Causa:** além do genérico `FindObjectsByType<T>()` (item 10), o overload
+**não-genérico** também falta no trampoline do IL2CPP. O `MissingMethodException`
+dispara no **JIT do método que contém a chamada**, então um `try/catch` no call
+site não intercepta.
+
+**Alternativa:** capture a instância no prefix Harmony (`__instance`). Para o
+`ChatMenu`, `_OnTextInputSubmit`/`SendPlayerMessage` já entregam a instância;
+não faça varredura de cena no boot. Se precisar de um objeto, obtenha-o de um
+patch/lifecycle, não de `FindObjects*`.
+
+## 20. Como adicionar um dead end
 
 - Título curto e específico.
 - **Status:** `local (verificado em jogo em AAAA-MM-DD)` ou `reportado por terceiros`.

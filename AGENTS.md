@@ -103,9 +103,13 @@ src/AICompanionsAska/
     CompanionPersona.cs     personalidade (planejado)
     CompanionMemory.cs      memória curta por companheiro (planejado)
   Chat/
-    ChatCommand.cs          struct Raw/Text/Addressed/Source/Timestamp
-    ChatAddressing.cs       filtro de prefixo `/c`
+    ChatCommand.cs          struct Raw/Text/Addressed/Source/Timestamp/CompanionName
+    ChatAddressing.cs       prefixo `/c` ou nome do companheiro
+    NameAddressing.cs       nome completo + separador, nome mais longo vence
+    CompanionRegistry.cs    nomes de AI.CompanionNames; primeiro = padrão de /c
     ChatCapture.cs          evento Captured + last/count/dedupe
+    ChatMenuCapture.cs      instância do ChatMenu via __instance (sem busca de cena)
+    CompanionChatReply.cs   resposta local via ChatMenu._AddNewTextLine
   Companion/
     CompanionRecruit.cs     villager -> PlayerParty (planejado)
     CompanionProfile.cs     nome/voz/personalidade por companheiro (planejado)
@@ -258,12 +262,15 @@ técnicos.
 - `v0.2.0` — captura do chat por prefixo `/c`; **confirmada em jogo em 2026-10-28**
   (`_OnTextInputSubmit` + `SendInGameChatMessage`, com dedupe; sem prefixo é ignorado).
   Evidência: `docs/re/chat-hook-verification.md`.
-- `v0.3.0` (**branch `feat/llm-intent`**) — cliente LM Studio/OpenAI-compatible, schema
-  estrito, parser de intenção e brain com fila. **Cadeia confirmada via self-test** (harness
-  33/33 + `action=follow`/`come` em jogo); ainda **não executa ordens**, sem resposta/voz/UI.
-  Evidência: `docs/re/llm-intent-verification.md`.
+- `v0.3.0` — cliente LM Studio/OpenAI-compatible, schema estrito, parser de intenção e brain
+  com fila. **Cadeia confirmada via self-test** (harness 33/33 + `action=follow`/`come` em
+  jogo). Evidência: `docs/re/llm-intent-verification.md`.
+- `v0.4.0` (**branch `feat/named-chat-reply`**) — nomes de companheiros
+  (`AI.CompanionNames`), endereçamento `Thorin, ...`, prompt com identidade e resposta no chat
+  via `ChatMenu._AddNewTextLine`. **Resposta (texto) confirmada via self-test**; linha visual
+  em mundo pendente. Harness 41/41. Evidência: `docs/re/chat-reply-verification.md`.
 - **Branches:**
-  - `feat/llm-intent` — LLM + parser (cadeia confirmada; merge pendente).
+  - `feat/named-chat-reply` — resposta no chat por nome (merge pendente).
   - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir (próxima).
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

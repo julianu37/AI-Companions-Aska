@@ -8,10 +8,10 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Status:** `v0.3.0` — **LLM intent**. O plugin captura `/c ...` no chat, chama o LM Studio
-local (`qwen2.5-3b-instruct`) e **entende/loga a intenção** em JSON; a cadeia foi confirmada
-com self-test em jogo em 2026-10-28. Ainda **não executa ordens**, não responde no chat e não
-tem voz/UI.
+**Status:** `v0.4.0` — **companion chat reply**. O plugin captura `/c ...` ou
+`Thorin, ...`, chama o LM Studio local (`qwen2.5-3b-instruct`) e o companheiro **responde no
+chat com o próprio nome** (`Thorin: ...`). O self-test confirmou o texto; a linha visual em um
+mundo está **pendente de confirmação**. Ainda **não executa ordens**, não tem voz/UI.
 
 ---
 
@@ -49,7 +49,7 @@ tem voz/UI.
 2. Copie o conteúdo do release (ou a pasta `AI-Companions-Aska` do build local) para:
    `...\ASKA\BepInEx\plugins\AI-Companions-Aska\`.
 3. Abra o jogo **pelo Steam** e confira `BepInEx\LogOutput.log`:
-   deve aparecer a versão que você compilou/baixou (neste branch, `AI Companions - ASKA 0.3.0`)
+   deve aparecer a versão que você compilou/baixou (neste branch, `AI Companions - ASKA 0.4.0`)
    e `loaded successfully`.
 4. Abra o LM Studio, carregue o `qwen2.5-3b-instruct` e inicie o **Local Server** em
    `127.0.0.1:1234`. Sem ele, o chat ainda é capturado, mas o LLM loga falha de rede.
@@ -76,8 +76,9 @@ O `Environment.props` é **local** e não vai para o repositório. O build refer
 | `V` (segurar) | Push-to-talk (configurável) |
 | `I` | Painel da IA (configurável) — a partir da fase de UI |
 
-> O prefixo `/c` está ativo desde a `0.2.0` (captura no log); as teclas de voz/painel ainda não.
-> O BepInEx Configuration Manager (se instalado) usa a tecla dele; não é uma tecla do mod.
+> Desde a `0.4.0` o companheiro também responde no chat com o próprio nome (`Thorin: ...`) e
+> aceita `Thorin, ...` além de `/c ...` (`AI.CompanionNames`/`AI.AddressByName`). As teclas de
+> voz/painel ainda não existem. O BepInEx Configuration Manager (se instalado) usa a tecla dele.
 
 ## Arquitetura (resumo)
 
@@ -156,10 +157,11 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > (LM Studio + Qwen2.5-3B-Instruct) and **local speech** (Whisper + Kokoro). Built on ASKA's
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
-**Status:** `v0.3.0` — **LLM intent**. The plugin captures `/c ...` from chat, calls local LM
-Studio (`qwen2.5-3b-instruct`) and **parses/logs the intent** as JSON; the chain was confirmed
-with an in-game self-test on 2026-10-28. It does **not execute orders**, reply in chat or
-provide voice/UI yet.
+**Status:** `v0.4.0` — **companion chat reply**. The plugin captures `/c ...` or
+`Thorin, ...`, calls local LM Studio (`qwen2.5-3b-instruct`) and the companion **replies in
+chat under its own name** (`Thorin: ...`). The self-test confirmed the text; the visual chat
+line in a world is **pending confirmation**. It does **not execute orders**, and has no
+voice/UI yet.
 
 ### Requirements
 

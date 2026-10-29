@@ -23,6 +23,8 @@ internal static class ModConfig
     internal static ConfigEntry<int> TimeoutSeconds = null!;
     internal static ConfigEntry<string> ChatPrefix = null!;
     internal static ConfigEntry<bool> AddressByName = null!;
+    internal static ConfigEntry<string> CompanionNames = null!;
+    internal static ConfigEntry<bool> ReplyInChat = null!;
     internal static ConfigEntry<int> Memory = null!;
     internal static ConfigEntry<string> Personality = null!;
 
@@ -96,10 +98,16 @@ internal static class ModConfig
             "Empty = chat hook disabled.");
 
         AddressByName = config.Bind(
-            "AI", "AddressByName", false,
-            "Also accept messages that start with the companion name. " +
-            "Reserved for a later phase: NOT implemented yet (only the prefix is captured). " +
-            "Default false; enabling it now has no effect.");
+            "AI", "AddressByName", true,
+            "Accept messages that start with a companion name (from AI.CompanionNames), e.g. 'Thorin, hello'.");
+
+        CompanionNames = config.Bind(
+            "AI", "CompanionNames", "Thorin",
+            "Comma-separated companion names. The first is the default target of the /c prefix.");
+
+        ReplyInChat = config.Bind(
+            "AI", "ReplyInChat", true,
+            "Show the LLM reply as a chat line authored by the companion.");
 
         Memory = config.Bind(
             "AI", "Memory", 4,

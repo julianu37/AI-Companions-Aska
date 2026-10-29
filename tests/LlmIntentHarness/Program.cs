@@ -1,4 +1,5 @@
 using AICompanionsAska.AI;
+using AICompanionsAska.Chat;
 
 int failures = 0;
 int checks = 0;
@@ -99,6 +100,23 @@ Check("format rejection response_format", LlmProtocol.IsFormatRejection(400, "re
 Check("format rejection json_object", LlmProtocol.IsFormatRejection(422, "json_object not allowed"));
 Check("format rejection model", !LlmProtocol.IsFormatRejection(400, "model not found"));
 Check("format rejection 500", !LlmProtocol.IsFormatRejection(500, "json_schema failed"));
+
+// Endereçamento por nome (puro)
+string[] one = { "Thorin" };
+string[] two = { "Thor", "Thorin" };
+
+Check("name virgula", NameAddressing.TryStrip("Thorin, bom dia", one, out string n1, out string r1) &&
+                      n1 == "Thorin" && r1 == "bom dia");
+Check("name dois pontos", NameAddressing.TryStrip("thorin: oi", one, out string n2, out string r2) &&
+                         n2 == "Thorin" && r2 == "oi");
+Check("name espaco", NameAddressing.TryStrip("Thorin bom dia", one, out string n3, out string r3) &&
+                     n3 == "Thorin" && r3 == "bom dia");
+Check("name sozinho", !NameAddressing.TryStrip("Thorin", one, out _, out _));
+Check("name prefixo falso", !NameAddressing.TryStrip("Thorinzinho, oi", one, out _, out _));
+Check("name vazio", !NameAddressing.TryStrip("Thorin,   ", one, out _, out _));
+Check("name mais longo ganha", NameAddressing.TryStrip("Thorin, oi", two, out string n4, out string r4) &&
+                              n4 == "Thorin" && r4 == "oi");
+Check("sem nomes", !NameAddressing.TryStrip("Thorin, oi", Array.Empty<string>(), out _, out _));
 
 Console.WriteLine();
 Console.WriteLine($"{checks - failures}/{checks} checks passed.");

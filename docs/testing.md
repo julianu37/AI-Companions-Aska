@@ -42,9 +42,9 @@ O cache de descoberta pode ficar velho depois de mover/adicionar DLLs.
 
 | Caso | Passos | Esperado |
 |---|---|---|
-| Ordem simples | digitar `/c segue` | companheiro segue; log `[AIC][ORDER] follow` |
-| Parar | `/c para` | companheiro para |
-| Conversa | `/c bom dia` | resposta curta no chat/balão |
+| Ordem simples | digitar `/c segue` | `[AIC][LLM] intent action=follow/come` (execução na fase `recruit-follow`) |
+| Parar | `/c para` | `intent action=stop` no log (execução na fase `recruit-follow`) |
+| Conversa | `/c bom dia` | resposta curta no chat (`Thorin: ...`) |
 | Prefixo ausente | `bom dia` | mod ignora (modo normal) |
 | LLM offline | desligar o LM Studio e mandar ordem | aviso claro, sem travar |
 | JSON inválido | forçar resposta fora do schema | parser cai no fallback, sem crash |
@@ -54,12 +54,16 @@ O cache de descoberta pode ficar velho depois de mover/adicionar DLLs.
 
 | Caso | Passos | Esperado |
 |---|---|---|
-| Self-test | `AI.SelfTest=true`, abrir o jogo | `[AIC][CHAT] addressed from selftest (5 chars): "segue"` + `[AIC][LLM] ... mode=JsonSchema ... action=follow/come` |
-| Chat + LLM | `/c segue` em um mundo | `[AIC][CHAT] addressed ...` + `[AIC][LLM] intent ... action=follow/come` |
+| Self-test | `AI.SelfTest=true`, abrir o jogo | `[AIC][CHAT] addressed to Thorin from selftest-name ... "bom dia"` + `[AIC][LLM] ... action=none ... reply="Bom dia!..."` + `[AIC][REPLY] (sem ChatMenu) Thorin: ...` |
+| Chat + LLM | `/c segue` em um mundo | `addressed to Thorin ...` + intent + linha `Thorin: ...` |
+| Nome | `Thorin, bom dia` em um mundo | `addressed to Thorin ...` + `intent` + linha `Thorin: ...` |
+| Nome inválido | `Thorinzinho, oi` | ignorado (nome completo + separador) |
+| Sem nome/prefixo | `bom dia` | ignorado |
 | LM Studio offline | fechar o LM Studio e mandar ordem | `[AIC][LLM] falhou: rede...`; jogo continua |
 | `AI.Enabled=false` | desligar no `.cfg` | chat captura/loga, mas nenhuma chamada LLM |
+| `ReplyInChat=false` | desligar no `.cfg` | intent logado, sem linha no chat |
 | `StructuredOutput=false` | desligar no `.cfg` | `mode=None` no log; parser ainda funciona se o modelo devolver JSON |
-| Harness | `dotnet run --project tests/LlmIntentHarness -c Release` | `33/33 checks passed` |
+| Harness | `dotnet run --project tests/LlmIntentHarness -c Release` | `41/41 checks passed` |
 
 > `AI.SelfTest` é diagnóstico: deixe `false` fora de um teste. O self-test injeta a mensagem no
 > `ChatCapture` (não no chat do jogo), então ele prova a cadeia sem precisar entrar em um mundo.
