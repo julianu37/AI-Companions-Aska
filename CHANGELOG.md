@@ -21,6 +21,7 @@ versionamento semântico (`MAJOR.MINOR.PATCH`).
 ### Notas
 
 - **Não há gameplay** nesta versão: sem chat, LLM, voz ou ordens.
-- O carregamento em jogo ainda precisa ser confirmado pelo jogador (log).
+- **Carregamento confirmado em jogo em 2026-10-28** (log + `.cfg` criados); evidência em
+  [`docs/re/m0-load-verification.md`](docs/re/m0-load-verification.md).
 - Próximas branches previstas: `feat/chat-hook`, `feat/llm-intent`, `feat/recruit-follow`,
   `feat/voice-stt`, `feat/voice-tts`.

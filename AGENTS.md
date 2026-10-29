@@ -243,8 +243,8 @@ técnicos.
 ## 13. Estado atual
 
 - `v0.1.0` — scaffold: solução, plugin BepInEx 6, config inicial, scripts, documentação,
-  agentes e skills. **Build + deploy OK; carregamento em jogo pendente de confirmação** (o
-  `.cfg` do mod ainda não foi criado).
+  agentes e skills. **Build + deploy + carregamento em jogo confirmados em 2026-10-28**; o
+  `.cfg` do mod foi criado. Evidência: `docs/re/m0-load-verification.md`.
 - **Próximas branches previstas:**
   - `feat/chat-hook` — capturar `ChatMenu.SendPlayerMessage` e provar o caminho do chat.
   - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção.

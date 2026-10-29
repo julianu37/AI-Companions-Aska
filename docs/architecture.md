@@ -214,5 +214,5 @@ Seções iniciais:
 - Sem patches, sem captura, sem LLM, sem voz.
 - O objetivo desta versão é provar que o toolchain (BepInEx 6 IL2CPP + net6.0 + interop +
   deploy) funciona nesta máquina.
-- **Status:** build + deploy OK; carregamento em jogo **pendente de confirmação** (o
-  `.cfg` do mod ainda não foi criado).
+- **Status:** build + deploy OK; carregamento **confirmado em jogo em 2026-10-28** (log e
+  `.cfg` criados). Evidência: `docs/re/m0-load-verification.md`.

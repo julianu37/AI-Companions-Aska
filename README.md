@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Status:** `v0.1.0` — **scaffold**. O plugin BepInEx compila e é deployado; o carregamento em
-jogo ainda **não foi confirmado**. As ordens, o chat, o LLM e a voz entram nas próximas
-branches. Nada de gameplay ainda.
+**Status:** `v0.1.0` — **scaffold**. O plugin BepInEx compila, é deployado e **carrega em jogo**
+(log confirmado em 2026-10-28). As ordens, o chat, o LLM e a voz entram nas próximas branches.
+Nada de gameplay ainda.
 
 ---
 
@@ -151,8 +151,9 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > (LM Studio + Qwen2.5-3B-Instruct) and **local speech** (Whisper + Kokoro). Built on ASKA's
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
-**Status:** `v0.1.0` — **scaffold**. The BepInEx plugin builds and deploys; in-game loading is
-**not confirmed yet**. Chat, orders, LLM and voice arrive in later branches. No gameplay yet.
+**Status:** `v0.1.0` — **scaffold**. The BepInEx plugin builds, deploys and **loads in game**
+(log confirmed on 2026-10-28). Chat, orders, LLM and voice arrive in later branches. No gameplay
+yet.
 
 ### Requirements
 
