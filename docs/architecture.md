@@ -256,7 +256,7 @@ Seções iniciais:
   (fila + uma requisição por vez + drenagem na main thread) e self-test
   (`AI.SelfTest` / `AIC_LLM_SELFTEST=1`).
 - **Cadeia confirmada:** self-test injeta `segue` no `ChatCapture`, o LLM responde
-  `action=follow` em `mode=JsonSchema` e o intent é logado. Evidência:
+  `action=follow`/`come` em `mode=JsonSchema` e o intent é logado. Evidência:
   `docs/re/llm-intent-verification.md`.
 - **Ainda não executa ordens**, não responde no chat/balão, não tem voz nem UI. `AddressByName`
   continua reservado (default false).

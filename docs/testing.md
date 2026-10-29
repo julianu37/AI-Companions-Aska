@@ -54,12 +54,12 @@ O cache de descoberta pode ficar velho depois de mover/adicionar DLLs.
 
 | Caso | Passos | Esperado |
 |---|---|---|
-| Self-test | `AI.SelfTest=true`, abrir o jogo | `[AIC][CHAT] addressed from selftest (5 chars): "segue"` + `[AIC][LLM] ... mode=JsonSchema ... action=follow` |
-| Chat + LLM | `/c segue` em um mundo | `[AIC][CHAT] addressed ...` + `[AIC][LLM] intent ... action=follow` |
+| Self-test | `AI.SelfTest=true`, abrir o jogo | `[AIC][CHAT] addressed from selftest (5 chars): "segue"` + `[AIC][LLM] ... mode=JsonSchema ... action=follow/come` |
+| Chat + LLM | `/c segue` em um mundo | `[AIC][CHAT] addressed ...` + `[AIC][LLM] intent ... action=follow/come` |
 | LM Studio offline | fechar o LM Studio e mandar ordem | `[AIC][LLM] falhou: rede...`; jogo continua |
 | `AI.Enabled=false` | desligar no `.cfg` | chat captura/loga, mas nenhuma chamada LLM |
 | `StructuredOutput=false` | desligar no `.cfg` | `mode=None` no log; parser ainda funciona se o modelo devolver JSON |
-| Harness | `dotnet run --project tests/LlmIntentHarness -c Release` | `19/19 checks passed` |
+| Harness | `dotnet run --project tests/LlmIntentHarness -c Release` | `33/33 checks passed` |
 
 > `AI.SelfTest` é diagnóstico: deixe `false` fora de um teste. O self-test injeta a mensagem no
 > `ChatCapture` (não no chat do jogo), então ele prova a cadeia sem precisar entrar em um mundo.
@@ -129,7 +129,7 @@ coreclr.dll+0x1d1fdd ...       crash nativo (WER)
 
 ```md
 ## Versão
-- Mod: 0.2.0
+- Mod: 0.3.0
 - ASKA build: 25834809 (Unity 6000.3.12f1)
 - BepInEx: 6.0.0-be.791
 

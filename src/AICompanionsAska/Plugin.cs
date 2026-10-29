@@ -28,6 +28,7 @@ public sealed class Plugin : BasePlugin
     internal static string PluginDirectory { get; private set; } = string.Empty;
 
     private static GameObject? _brainObject;
+    private static bool _brainReady;
 
     public override void Load()
     {
@@ -51,23 +52,25 @@ public sealed class Plugin : BasePlugin
             UnityEngine.Object.DontDestroyOnLoad(_brainObject);
             _brainObject.AddComponent<CompanionBrainRunner>();
             CompanionBrain.Start();
+            _brainReady = true;
         }
         catch (Exception ex)
         {
+            _brainReady = false;
             LogSource.LogError($"[AIC] LLM brain runner failed: {ex.GetType().Name}: {ex.Message}");
         }
 
-        if (_brainObject != null &&
+        if (_brainReady &&
             (ModConfig.SelfTest is { Value: true } ||
              string.Equals(Environment.GetEnvironmentVariable("AIC_LLM_SELFTEST"), "1", StringComparison.Ordinal)))
             CompanionBrain.SelfTest();
 
         LogSource.LogInfo(
-            $"[AIC] Enabled={ModConfig.Enabled.Value} | chat hook applied={ChatPatch.Applied} | " +
+            $"[AIC] Enabled={ModConfig.Enabled.Value} | VerboseLog={ModConfig.VerboseLog.Value} | chat hook applied={ChatPatch.Applied} | " +
             $"ChatPrefix=\"{ChatAddressing.GetPrefix()}\" | AddressByName={ModConfig.AddressByName.Value} (reserved) | " +
             $"AI.Enabled={ModConfig.AiEnabled.Value} | model={ModConfig.Model.Value} | " +
             $"url={ModConfig.BaseUrl.Value} | structured={ModConfig.StructuredOutput.Value} | " +
-            $"brain runner={(_brainObject != null ? "ok" : "failed")}.");
+            $"brain runner={(_brainReady ? "ok" : "failed")}.");
         LogSource.LogInfo($"[AIC] {PluginInfo.Name} loaded successfully.");
     }
 
@@ -76,6 +79,7 @@ public sealed class Plugin : BasePlugin
         LogSource.LogInfo($"[AIC] {PluginInfo.Name} unloading.");
 
         CompanionBrain.Stop();
+        _brainReady = false;
 
         if (_brainObject != null)
         {

@@ -6,32 +6,21 @@
 - **Objetivo:** provar que o cliente OpenAI-compatible, o schema estrito, o parser e a
   cadeia `ChatCapture` -> brain -> LLM -> drenagem funcionam com o modelo real.
 
-## 1. Harness do parser
+## 1. Harness do parser + protocolo
 
 `dotnet run --project tests/LlmIntentHarness -c Release`:
 
 ```text
-PASS  follow
-PASS  seguir
-PASS  para
-PASS  vir
-PASS  atacar
-PASS  coletar
-PASS  equipar
-PASS  largar
-PASS  inventory
-PASS  none
-PASS  resource manda
-PASS  amount string
-PASS  amount zero
-PASS  code fence
-PASS  texto ao redor
-PASS  ação desconhecida
-PASS  json invalido
-PASS  vazio
-PASS  ToString sem newline
+PASS  follow / seguir / para / vir / atacar / coletar / equipar / largar
+PASS  inventory / none / resource manda
+PASS  amount string / amount decimal / amount zero
+PASS  code fence / texto ao redor / objeto extra depois
+PASS  ação desconhecida / json invalido / vazio / ToString sem newline
+PASS  BuildUrl default / trailing slash / ja completo / host raiz / groq
+PASS  schema additionalProperties / enum follow / required
+PASS  format rejection response_format / json_object / model / 500
 
-19/19 checks passed.
+33/33 checks passed.
 ```
 
 ## 2. Cadeia em jogo (self-test)
@@ -43,22 +32,32 @@ PASS  ToString sem newline
            url=http://127.0.0.1:1234/v1 | structured=True
 [AIC][LLM-SELFTEST] enfileirando 'segue' via ChatCapture (language=pt-BR, model=qwen2.5-3b-instruct)
 [AIC][CHAT] addressed from selftest (5 chars): "segue"
-[AIC][LLM] HTTP 200 em 226 ms | mode=JsonSchema | action=follow target=- resource=- amount=- reply="Sigamos em frente."
-[AIC][LLM] intent em 226 ms (mode=JsonSchema): action=follow target=- resource=- amount=- reply="Sigamos em frente."
+[AIC][LLM] intent em 233 ms (mode=JsonSchema): action=come target=- resource=- amount=- reply="Acompanhando voce."
 ```
 
-O `json_schema` estrito foi aceito na primeira tentativa (`mode=JsonSchema`). A chamada
-seguinte, em uma execução anterior, levou **2.487 ms**; o cache do modelo explica a variação.
+O `json_schema` estrito foi aceito na primeira tentativa (`mode=JsonSchema`). O modelo pode
+devolver `follow` ou `come` para "segue" (os dois são válidos para o contrato); em execuções
+anteriores ele devolveu `action=follow`. A latência variou de ~220 ms (modelo cacheado) a
+~2,5 s.
+
+**Privacidade:** com `VerboseLog=false`, a mesma execução logou apenas
+`[AIC][CHAT] addressed from selftest (5 chars)` e
+`[AIC][LLM] intent em 233 ms (mode=JsonSchema): action=come target=- resource=- amount=-`
+— **sem** o texto e **sem** o `reply`.
+
+**Thread safety:** o `LlmClient` não loga mais no worker; o único log do intent é o
+`CompanionBrain.Drain`, na main thread.
 
 ## 3. O que está provado
 
 - O endpoint LM Studio responde no formato OpenAI.
 - O schema `companion_intent` estrito é aceito pelo `qwen2.5-3b-instruct`.
-- O parser transforma o JSON em `action=follow` (e nos outros 18 casos do harness).
+- O parser transforma o JSON em `action=come`/`follow` e passa nos 33 casos do harness.
 - A cadeia `ChatCapture.Captured` -> `CompanionBrain` -> `LlmClient` -> `Drain` funciona e loga
   o intent na main thread.
 - O runner (`ClassInjector` + `GameObject`) é registrado e o `Update` drena a fila.
 - O self-test não bloqueia o boot (a chamada roda em `Task`).
+- O log respeita `VerboseLog=false` (sem texto do chat, sem `reply`).
 
 ## 4. O que ainda falta
 

@@ -34,7 +34,7 @@ jogo.
 - [x] Montar prompt (persona + contrato) e chamar o LM Studio em background.
   `LlmClient` + `CompanionPrompt`; `json_schema` estrito aceito pelo `qwen2.5-3b-instruct`.
 - [x] Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
-  `LlmIntent` + harness de 19 casos; cadeia confirmada com self-test em jogo.
+  `LlmIntent` + harness de 33 casos; cadeia confirmada com self-test em jogo.
 - [ ] Recrutar um villager para a `PlayerParty` e executar `follow`, `stop`, `come`.
 - [ ] Responder no chat e no balão nativo (`DialogueMenu`).
 

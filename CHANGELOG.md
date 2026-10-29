@@ -13,20 +13,23 @@ versionamento semântico (`MAJOR.MINOR.PATCH`).
 - **Parser de intenção** (`AI/LlmIntent.cs`): `action`, `reply`, `target`, `resource`,
   `amount`; aliases PT-BR/EN; code fence; amount string; `resource` manda quando o modelo
   devolve o recurso no campo `action`.
-- **Prompt e schema** (`AI/CompanionPrompt.cs`): persona + contrato, idioma do jogo,
-  `enum` fechado das ações.
+- **Prompt e schema** (`AI/CompanionPrompt.cs` + `AI/LlmProtocol.cs`): persona + contrato,
+  idioma configurado (pt-BR/EN; `auto` = pt-BR nesta fase), `enum` fechado das ações.
 - **Brain** (`AI/CompanionBrain.cs` + `CompanionBrainRunner`): fila, uma requisição por vez,
-  drenagem na main thread, log do intent; self-test por `AIC_LLM_SELFTEST=1`.
-- **Harness** `tests/LlmIntentHarness` (19 casos, todos passando).
-- Config `[AI] Enabled`, `StructuredOutput`, `MaxTokens`.
+  drenagem na main thread, log do intent; self-test por `AI.SelfTest` ou
+  `AIC_LLM_SELFTEST=1`.
+- **Harness** `tests/LlmIntentHarness` (33 casos: parser + URL/schema/format rejection).
+- Config `[AI] Enabled`, `StructuredOutput`, `MaxTokens`, `SelfTest`.
+- Log do intent só no `Drain` (main thread); o texto do chat e o `reply` só aparecem com
+  `VerboseLog=true`.
 
 ### Notas
 
 - O LLM **entende** e loga a intenção, mas **ainda não executa** ordens.
 - Chat hook (`/c ...`) continua igual; o brain assina o evento `ChatCapture.Captured`.
 - **Cadeia confirmada com self-test em jogo (2026-10-28):** `ChatCapture` -> `CompanionBrain`
-  -> LM Studio -> `action=follow` em `mode=JsonSchema` (226 ms). Harness do parser: 19/19.
-  Evidência: `docs/re/llm-intent-verification.md`.
+  -> LM Studio -> ação válida (`follow`/`come`) em `mode=JsonSchema` (~230 ms). Harness:
+  33/33. Evidência: `docs/re/llm-intent-verification.md`.
 - **Pendente:** `/c ...` real em um mundo com o LLM ligado (captura e cadeia já provadas
   separadamente); será feito na branch `feat/recruit-follow`.
 - O `ChatMenu._OnTextInputSubmit` e o `NetworkChatSession.SendInGameChatMessage` são os

@@ -42,15 +42,15 @@ internal static class ModConfig
         // General
         Enabled = config.Bind(
             "General", "Enabled", true,
-            "Turns the mod on/off. In 0.1.x it gates the chat capture hook (no LLM/voice yet).");
+            "Turns the mod on/off. Gates chat capture; the LLM layer has its own AI.Enabled.");
 
         VerboseLog = config.Bind(
             "General", "VerboseLog", true,
             "Verbose logging (ignored chat messages, prompt/JSON/intents). Turn it off before a release.");
 
         Language = config.Bind(
-            "General", "Language", "auto",
-            "Mod language: auto (follow the game), pt-BR or en.");
+            "General", "Language", "pt-BR",
+            "Mod language: pt-BR or en. auto resolves to pt-BR in this phase (the game's own language is not read yet).");
 
         // AI
         AiEnabled = config.Bind(
@@ -112,7 +112,7 @@ internal static class ModConfig
         // Voice
         VoiceEnabled = config.Bind(
             "Voice", "Enabled", false,
-            "Turns push-to-talk (STT) on. Not implemented in 0.1.0.");
+            "Turns push-to-talk (STT) on. Not implemented yet.");
 
         PushToTalkKey = config.Bind(
             "Voice", "PushToTalkKey", "V",

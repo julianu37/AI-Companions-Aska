@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -8,19 +7,22 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using AICompanionsAska.Chat;
 using AICompanionsAska.Core;
 
 namespace AICompanionsAska.AI;
 
 internal sealed class LlmResult
 {
-    private LlmResult(bool success, LlmIntent? intent, string error, long elapsedMs, LlmResponseMode mode)
+    private LlmResult(bool success, LlmIntent? intent, string error, long elapsedMs,
+        LlmResponseMode mode, ChatCommand command)
     {
         Success = success;
         Intent = intent;
         Error = error;
         ElapsedMs = elapsedMs;
         Mode = mode;
+        Command = command;
     }
 
     internal bool Success { get; }
@@ -33,33 +35,36 @@ internal sealed class LlmResult
 
     internal LlmResponseMode Mode { get; }
 
-    internal static LlmResult Ok(LlmIntent intent, long elapsedMs, LlmResponseMode mode) =>
-        new(true, intent, string.Empty, elapsedMs, mode);
+    /// <summary>Comando original, para a próxima fase validar staleness/target.</summary>
+    internal ChatCommand Command { get; }
 
-    internal static LlmResult Fail(string error, long elapsedMs = 0, LlmResponseMode mode = LlmResponseMode.None) =>
-        new(false, null, error, elapsedMs, mode);
+    internal static LlmResult Ok(LlmIntent intent, ChatCommand command, long elapsedMs, LlmResponseMode mode) =>
+        new(true, intent, string.Empty, elapsedMs, mode, command);
+
+    internal static LlmResult Fail(string error, ChatCommand command, long elapsedMs = 0,
+        LlmResponseMode mode = LlmResponseMode.None) =>
+        new(false, null, error, elapsedMs, mode, command);
 }
 
 /// <summary>
-/// Cliente OpenAI-compatible (LM Studio por padrão). Roda em background; nunca
-/// toca em objetos do Unity. A cadeia de formato tenta
-/// <c>json_schema</c> -> <c>json_object</c> -> sem formato, uma vez cada, somente
-/// quando o provedor recusa o formato (HTTP 400/422 citando o campo).
+/// Cliente OpenAI-compatible (LM Studio por padrão). Roda em background e
+/// <b>não loga</b>: o <see cref="CompanionBrain.Drain"/> é quem escreve na main
+/// thread (o DiskLogListener do BepInEx não é thread-safe). A cadeia de formato
+/// tenta <c>json_schema</c> -> <c>json_object</c> -> sem formato, uma vez cada,
+/// somente quando o provedor recusa o formato (HTTP 400/422 citando o campo).
 /// </summary>
 internal static class LlmClient
 {
-    private static readonly HttpClient Http = new()
-    {
-        Timeout = Timeout.InfiniteTimeSpan,
-    };
+    private static readonly HttpClient DirectHttp = CreateClient(useProxy: false);
+    private static readonly HttpClient ProxyHttp = CreateClient(useProxy: true);
 
     internal static async Task<LlmResult> CompleteAsync(
-        string userText,
+        ChatCommand command,
         string language,
         CancellationToken cancellationToken)
     {
         if (ModConfig.AiEnabled is { Value: false })
-            return LlmResult.Fail("AI.Enabled=false");
+            return LlmResult.Fail("AI.Enabled=false", command);
 
         string systemPrompt = CompanionPrompt.BuildSystemPrompt(language);
         LlmResponseMode[] modes = ModConfig.StructuredOutput is { Value: true }
@@ -75,16 +80,25 @@ internal static class LlmClient
             cancellationToken.ThrowIfCancellationRequested();
 
             string url;
+            Uri uri;
             try
             {
-                url = BuildUrl(ModConfig.BaseUrl.Value);
+                url = LlmProtocol.BuildUrl(ModConfig.BaseUrl.Value);
+                uri = new Uri(url);
             }
             catch (Exception ex)
             {
-                return LlmResult.Fail($"BaseUrl invalida: {ex.Message}");
+                return LlmResult.Fail($"BaseUrl invalida: {ex.Message}", command);
             }
 
-            string bodyJson = CompanionPrompt.BuildRequestBody(systemPrompt, userText, mode).ToJsonString();
+            string bodyJson = LlmProtocol.BuildRequestBody(
+                ModConfig.Model.Value,
+                ModConfig.Temperature.Value,
+                ModConfig.MaxTokens.Value,
+                systemPrompt,
+                command.Text,
+                mode,
+                LlmIntent.ValidActions).ToJsonString();
 
             using var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
@@ -98,12 +112,15 @@ internal static class LlmClient
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             int seconds = Math.Max(5, ModConfig.TimeoutSeconds?.Value ?? 30);
+            if (mode != LlmResponseMode.JsonSchema)
+                seconds = Math.Min(seconds, 12); // fallback de formato deve ser rápido
             timeout.CancelAfter(TimeSpan.FromSeconds(seconds));
 
             var stopwatch = Stopwatch.StartNew();
             try
             {
-                using HttpResponseMessage response = await Http.SendAsync(request, timeout.Token).ConfigureAwait(false);
+                HttpClient client = uri.IsLoopback ? DirectHttp : ProxyHttp;
+                using HttpResponseMessage response = await client.SendAsync(request, timeout.Token).ConfigureAwait(false);
                 string responseBody = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
                 stopwatch.Stop();
                 lastElapsed = stopwatch.ElapsedMilliseconds;
@@ -113,89 +130,63 @@ internal static class LlmClient
                     lastError = $"HTTP {(int)response.StatusCode} ({response.StatusCode}): {Truncate(responseBody, 400)}";
                     lastMode = mode;
 
-                    if (mode != LlmResponseMode.None && IsFormatRejection(response.StatusCode, responseBody))
-                    {
-                        AicLog.Flow("LLM", $"formato {mode} recusado (HTTP {(int)response.StatusCode}); tentando o proximo.");
+                    if (mode != LlmResponseMode.None && LlmProtocol.IsFormatRejection((int)response.StatusCode, responseBody))
                         continue;
-                    }
 
-                    return LlmResult.Fail(lastError, lastElapsed, mode);
+                    return LlmResult.Fail(lastError, command, lastElapsed, mode);
                 }
 
                 if (!TryExtractContent(responseBody, out string content, out string extractError))
                 {
                     lastError = extractError;
                     lastMode = mode;
-                    return LlmResult.Fail(lastError, lastElapsed, mode);
+                    return LlmResult.Fail(lastError, command, lastElapsed, mode);
                 }
 
                 if (!LlmIntent.TryParse(content, out LlmIntent intent, out string parseError))
                 {
-                    AicLog.Flow("LLM", $"conteudo nao parseavel (mode={mode}): {Truncate(content, 400)}");
-                    lastError = $"parse: {parseError}";
+                    lastError = $"parse: {parseError} | content={Truncate(content, 400)}";
                     lastMode = mode;
-                    return LlmResult.Fail(lastError, lastElapsed, mode);
+                    return LlmResult.Fail(lastError, command, lastElapsed, mode);
                 }
 
-                AicLog.Flow("LLM", $"HTTP 200 em {lastElapsed} ms | mode={mode} | {intent}");
-                return LlmResult.Ok(intent, lastElapsed, mode);
+                return LlmResult.Ok(intent, command, lastElapsed, mode);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                return LlmResult.Fail("cancelado", lastElapsed, mode);
+                return LlmResult.Fail("cancelado", command, lastElapsed, mode);
             }
             catch (OperationCanceledException)
             {
                 lastError = $"timeout apos {seconds}s";
                 lastMode = mode;
-                return LlmResult.Fail(lastError, lastElapsed, mode);
+                return LlmResult.Fail(lastError, command, lastElapsed, mode);
             }
             catch (HttpRequestException ex)
             {
-                return LlmResult.Fail($"rede: {ex.Message}", lastElapsed, mode);
+                return LlmResult.Fail($"rede: {ex.Message}", command, lastElapsed, mode);
             }
             catch (Exception ex)
             {
-                return LlmResult.Fail($"{ex.GetType().Name}: {ex.Message}", lastElapsed, mode);
+                return LlmResult.Fail($"{ex.GetType().Name}: {ex.Message}", command, lastElapsed, mode);
             }
         }
 
-        return LlmResult.Fail(lastError, lastElapsed, lastMode);
+        return LlmResult.Fail(lastError, command, lastElapsed, lastMode);
     }
 
-    internal static string BuildUrl(string baseUrl)
+    private static HttpClient CreateClient(bool useProxy)
     {
-        string url = (baseUrl ?? string.Empty).Trim();
-        if (url.Length == 0)
-            throw new InvalidOperationException("BaseUrl vazia");
+        var handler = new SocketsHttpHandler
+        {
+            UseProxy = useProxy,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        };
 
-        if (url.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
-            return url;
-
-        string trimmed = url.TrimEnd('/');
-        if (trimmed.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.Contains("/v1/", StringComparison.OrdinalIgnoreCase))
-            return trimmed + "/chat/completions";
-
-        var uri = new Uri(trimmed);
-        if (uri.AbsolutePath is "" or "/")
-            return trimmed + "/v1/chat/completions";
-
-        return trimmed + "/chat/completions";
-    }
-
-    private static bool IsFormatRejection(HttpStatusCode status, string body)
-    {
-        if (status is not (HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity))
-            return false;
-
-        if (string.IsNullOrEmpty(body))
-            return false;
-
-        return body.Contains("response_format", StringComparison.OrdinalIgnoreCase) ||
-               body.Contains("json_schema", StringComparison.OrdinalIgnoreCase) ||
-               body.Contains("json_object", StringComparison.OrdinalIgnoreCase) ||
-               body.Contains("format", StringComparison.OrdinalIgnoreCase);
+        return new HttpClient(handler)
+        {
+            Timeout = Timeout.InfiniteTimeSpan,
+        };
     }
 
     private static bool TryExtractContent(string responseBody, out string content, out string error)

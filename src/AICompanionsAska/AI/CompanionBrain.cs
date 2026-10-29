@@ -19,21 +19,24 @@ namespace AICompanionsAska.AI;
 /// </summary>
 internal static class CompanionBrain
 {
+    private const int MaxQueued = 4;
+    private const float ErrorLogIntervalSeconds = 10f;
+
     private static readonly ConcurrentQueue<ChatCommand> Incoming = new();
     private static readonly ConcurrentQueue<LlmResult> Results = new();
 
     private static int _busy;
-    private static bool _started;
+    private static volatile bool _stopped = true;
     private static CancellationTokenSource? _cts;
     private static float _lastErrorLogAt;
     private static string _lastError = string.Empty;
 
     internal static void Start()
     {
-        if (_started)
+        if (!_stopped)
             return;
 
-        _started = true;
+        _stopped = false;
         ChatCapture.Captured += OnCaptured;
 
         AicLog.Flow(
@@ -44,10 +47,10 @@ internal static class CompanionBrain
 
     internal static void Stop()
     {
-        if (!_started)
+        if (_stopped)
             return;
 
-        _started = false;
+        _stopped = true;
         ChatCapture.Captured -= OnCaptured;
 
         try
@@ -75,7 +78,7 @@ internal static class CompanionBrain
 
     private static void OnCaptured(ChatCommand command)
     {
-        if (ModConfig.AiEnabled is { Value: false })
+        if (_stopped || ModConfig.AiEnabled is { Value: false })
             return;
 
         if (command.Source != ChatSource.Chat)
@@ -83,14 +86,26 @@ internal static class CompanionBrain
 
         Incoming.Enqueue(command);
 
-        // Fila de chat nao deve crescer sem limite se o modelo estiver lento.
-        while (Incoming.Count > 4)
-            Incoming.TryDequeue(out _);
+        int dropped = 0;
+        while (Incoming.Count > MaxQueued)
+        {
+            if (Incoming.TryDequeue(out _))
+                dropped++;
+        }
+
+        if (dropped > 0)
+            AicLog.Warn($"[LLM] fila cheia; descartei {dropped} mensagem(ns) antiga(s).");
     }
 
-    /// <summary>Chamado na main thread. Inicia no maximo uma requisicao por vez.</summary>
+    /// <summary>Chamado na main thread. Inicia no máximo uma requisição por vez.</summary>
     internal static void Pump()
     {
+        if (_stopped)
+        {
+            Interlocked.Exchange(ref _busy, 0);
+            return;
+        }
+
         if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
             return;
 
@@ -100,26 +115,39 @@ internal static class CompanionBrain
             return;
         }
 
-        // Resolve o idioma na main thread (Application.systemLanguage) e passa
-        // pronto para o worker.
+        if (_stopped)
+        {
+            Interlocked.Exchange(ref _busy, 0);
+            return;
+        }
+
+        // Resolve o idioma na main thread e passa pronto para o worker.
         string language = CompanionPrompt.ResolveLanguage();
         var cts = new CancellationTokenSource();
         _cts = cts;
 
         _ = Task.Run(async () =>
         {
-            LlmResult result;
+            LlmResult result = LlmResult.Fail("worker nao executou", command);
             try
             {
-                result = await LlmClient.CompleteAsync(command.Text, language, cts.Token).ConfigureAwait(false);
+                result = await LlmClient.CompleteAsync(command, language, cts.Token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                result = LlmResult.Fail($"{ex.GetType().Name}: {ex.Message}");
+                result = LlmResult.Fail($"{ex.GetType().Name}: {ex.Message}", command);
             }
+            finally
+            {
+                if (!_stopped)
+                    Results.Enqueue(result);
 
-            Results.Enqueue(result);
-            Interlocked.Exchange(ref _busy, 0);
+                if (ReferenceEquals(_cts, cts))
+                    _cts = null;
+
+                cts.Dispose();
+                Interlocked.Exchange(ref _busy, 0);
+            }
         });
     }
 
@@ -133,13 +161,18 @@ internal static class CompanionBrain
 
             if (result.Success && result.Intent is not null)
             {
-                AicLog.Flow("LLM", $"intent em {result.ElapsedMs} ms (mode={result.Mode}): {result.Intent}");
-                // Proxima fase: CompanionOrders.Run(result.Intent, command.Text)
+                if (ModConfig.VerboseLog is { Value: true })
+                    AicLog.Flow("LLM", $"intent em {result.ElapsedMs} ms (mode={result.Mode}): {result.Intent}");
+                else
+                    AicLog.Flow("LLM", $"intent em {result.ElapsedMs} ms (mode={result.Mode}): {result.Intent.Summary}");
+
+                // Proxima fase: CompanionOrders.Run(result.Intent, result.Command.Text)
                 continue;
             }
 
             float now = Time.unscaledTime;
-            if (!string.Equals(_lastError, result.Error, StringComparison.Ordinal) || now - _lastErrorLogAt > 10f)
+            if (!string.Equals(_lastError, result.Error, StringComparison.Ordinal) ||
+                now - _lastErrorLogAt > ErrorLogIntervalSeconds)
             {
                 _lastError = result.Error;
                 _lastErrorLogAt = now;

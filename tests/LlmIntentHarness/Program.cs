@@ -49,6 +49,7 @@ ExpectAction("resource manda", """{"action":"wood","resource":"stone","amount":5
 
 // amount como string e 0 -> null
 ExpectAction("amount string", """{"action":"gather","reply":"","target":null,"resource":"pedra","amount":"7"}""", "gather", null, "stone", 7);
+ExpectAction("amount decimal", """{"action":"gather","reply":"","target":null,"resource":"pedra","amount":7.0}""", "gather", null, "stone", 7);
 ExpectAction("amount zero", """{"action":"gather","reply":"","target":null,"resource":"madeira","amount":0}""", "gather", null, "wood", null);
 
 // Code fence, texto ao redor, propriedades com caixa diferente
@@ -57,6 +58,9 @@ ExpectAction("code fence",
     "follow");
 ExpectAction("texto ao redor",
     "Claro! {\"action\":\"stop\",\"reply\":\"ok\",\"target\":null,\"resource\":null,\"amount\":null} fim",
+    "stop");
+ExpectAction("objeto extra depois",
+    "{\"action\":\"stop\",\"reply\":\"ok\",\"target\":null,\"resource\":null,\"amount\":null} note {\"x\":1}",
     "stop");
 
 // Inválidos
@@ -73,6 +77,28 @@ else
 {
     Check("ToString sem newline", false, "parse falhou");
 }
+
+// Protocolo puro
+Check("BuildUrl default",
+    LlmProtocol.BuildUrl("http://127.0.0.1:1234/v1") == "http://127.0.0.1:1234/v1/chat/completions");
+Check("BuildUrl trailing slash",
+    LlmProtocol.BuildUrl("http://127.0.0.1:1234/v1/") == "http://127.0.0.1:1234/v1/chat/completions");
+Check("BuildUrl ja completo",
+    LlmProtocol.BuildUrl("https://x/v1/chat/completions") == "https://x/v1/chat/completions");
+Check("BuildUrl host raiz",
+    LlmProtocol.BuildUrl("http://127.0.0.1:1234") == "http://127.0.0.1:1234/v1/chat/completions");
+Check("BuildUrl groq",
+    LlmProtocol.BuildUrl("https://api.groq.com/openai/v1") == "https://api.groq.com/openai/v1/chat/completions");
+
+string schema = LlmProtocol.BuildSchemaJson(LlmIntent.ValidActions);
+Check("schema additionalProperties", schema.Contains("\"additionalProperties\":false"));
+Check("schema enum follow", schema.Contains("\"follow\""));
+Check("schema required", schema.Contains("\"action\"") && schema.Contains("\"amount\""));
+
+Check("format rejection response_format", LlmProtocol.IsFormatRejection(400, "response_format is not supported"));
+Check("format rejection json_object", LlmProtocol.IsFormatRejection(422, "json_object not allowed"));
+Check("format rejection model", !LlmProtocol.IsFormatRejection(400, "model not found"));
+Check("format rejection 500", !LlmProtocol.IsFormatRejection(500, "json_schema failed"));
 
 Console.WriteLine();
 Console.WriteLine($"{checks - failures}/{checks} checks passed.");

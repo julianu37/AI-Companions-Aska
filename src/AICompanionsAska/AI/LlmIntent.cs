@@ -177,7 +177,7 @@ internal sealed class LlmIntent
                 return false;
             }
 
-            if (action == "gather" && resource is not null)
+            if (resource is not null)
                 resource = NormalizeResource(resource);
 
             intent = new LlmIntent
@@ -203,16 +203,25 @@ internal sealed class LlmIntent
         }
     }
 
-    /// <summary>Resumo seguro para log (sem quebras de linha no reply).</summary>
+    /// <summary>Resumo sem o texto falado (para log com VerboseLog=false).</summary>
+    internal string Summary =>
+        $"action={Action} target={Flat(Target)} resource={Flat(Resource)} " +
+        $"amount={(Amount?.ToString(CultureInfo.InvariantCulture) ?? "-")}";
+
+    /// <summary>Resumo seguro para log (sem quebras de linha em nenhum campo).</summary>
     public override string ToString()
     {
-        string reply = Reply.Replace('\r', ' ').Replace('\n', ' ');
+        string reply = Flat(Reply);
         if (reply.Length > 200)
             reply = reply.Substring(0, 200) + "...";
 
-        return $"action={Action} target={(Target ?? "-")} resource={(Resource ?? "-")} " +
-               $"amount={(Amount?.ToString(CultureInfo.InvariantCulture) ?? "-")} reply=\"{reply}\"";
+        return $"{Summary} reply=\"{reply}\"";
     }
+
+    private static string Flat(string? value) =>
+        string.IsNullOrEmpty(value)
+            ? "-"
+            : value.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
 
     private static string ExtractJson(string content)
     {
@@ -229,12 +238,57 @@ internal sealed class LlmIntent
                 text = text[..lastFence];
         }
 
+        // Recorta o primeiro objeto balanceado, ignorando chaves dentro de
+        // strings (um texto depois do JSON não pode estragar o parse).
         int start = text.IndexOf('{');
-        int end = text.LastIndexOf('}');
-        if (start >= 0 && end > start)
-            text = text[start..(end + 1)];
+        if (start < 0)
+            return text.Trim();
 
-        return text.Trim();
+        int depth = 0;
+        bool inString = false;
+        bool escaped = false;
+
+        for (int i = start; i < text.Length; i++)
+        {
+            char c = text[i];
+
+            if (inString)
+            {
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inString = true;
+                continue;
+            }
+
+            if (c == '{')
+            {
+                depth++;
+            }
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0)
+                    return text[start..(i + 1)].Trim();
+            }
+        }
+
+        return text[start..].Trim();
     }
 
     private static string? ReadString(JsonElement root, string name)
@@ -258,14 +312,26 @@ internal sealed class LlmIntent
         if (!TryGetProperty(root, name, out JsonElement property))
             return null;
 
-        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out int number))
-            return number > 0 ? number : null;
+        double value;
+        if (property.ValueKind == JsonValueKind.Number)
+        {
+            if (!property.TryGetDouble(out value))
+                return null;
+        }
+        else if (property.ValueKind == JsonValueKind.String)
+        {
+            if (!double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+                return null;
+        }
+        else
+        {
+            return null;
+        }
 
-        if (property.ValueKind == JsonValueKind.String &&
-            int.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
-            return number > 0 ? number : null;
+        if (value <= 0 || value > int.MaxValue)
+            return null;
 
-        return null;
+        return (int)Math.Round(value);
     }
 
     private static bool TryGetProperty(JsonElement root, string name, out JsonElement value)

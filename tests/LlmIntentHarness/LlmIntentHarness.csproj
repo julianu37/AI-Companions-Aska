@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\AICompanionsAska\AI\LlmIntent.cs" Link="LlmIntent.cs" />
+    <Compile Include="..\..\src\AICompanionsAska\AI\LlmProtocol.cs" Link="LlmProtocol.cs" />
   </ItemGroup>
 
 </Project>

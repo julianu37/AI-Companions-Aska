@@ -49,10 +49,10 @@ tem voz/UI.
 2. Copie o conteúdo do release (ou a pasta `AI-Companions-Aska` do build local) para:
    `...\ASKA\BepInEx\plugins\AI-Companions-Aska\`.
 3. Abra o jogo **pelo Steam** e confira `BepInEx\LogOutput.log`:
-   deve aparecer a versão que você compilou/baixou (neste branch, `AI Companions - ASKA 0.2.0`)
+   deve aparecer a versão que você compilou/baixou (neste branch, `AI Companions - ASKA 0.3.0`)
    e `loaded successfully`.
-4. (Quando o LLM entrar) abra o LM Studio, carregue o `qwen2.5-3b-instruct` e inicie o
-   **Local Server** em `127.0.0.1:1234`.
+4. Abra o LM Studio, carregue o `qwen2.5-3b-instruct` e inicie o **Local Server** em
+   `127.0.0.1:1234`. Sem ele, o chat ainda é capturado, mas o LLM loga falha de rede.
 
 ## Build
 
