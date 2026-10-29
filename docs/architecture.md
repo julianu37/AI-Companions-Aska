@@ -52,8 +52,9 @@ Regras:
 |---|---|
 | `Plugin.cs` | Entrada BepInEx, versão, log de boot |
 | `Core/ModConfig.cs` | `ConfigEntry` de `General`, `AI`, `Voice`, `UI` |
-| `Core/Log.cs` | Prefixo `[AIC]`, níveis e helpers |
-| `Core/GameEnvironment.cs` | Detecção de mundo/player (planejado) |
+| `Core/AicLog.cs` | Prefixo `[AIC]`, níveis e helpers |
+| `Diagnostics/EnvironmentReport.cs` | Versões/caminhos/interop no boot |
+| `Diagnostics/GameEnvironment.cs` | Detecção de mundo/player (planejado) |
 
 ### 3.2 Captura (chat/voz)
 
@@ -213,3 +214,5 @@ Seções iniciais:
 - Sem patches, sem captura, sem LLM, sem voz.
 - O objetivo desta versão é provar que o toolchain (BepInEx 6 IL2CPP + net6.0 + interop +
   deploy) funciona nesta máquina.
+- **Status:** build + deploy OK; carregamento em jogo **pendente de confirmação** (o
+  `.cfg` do mod ainda não foi criado).

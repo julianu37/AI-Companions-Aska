@@ -10,7 +10,8 @@ como ler o log e o que bloqueia um release.
 - [ ] `Environment.props` existe e aponta para o ASKA correto.
 - [ ] `dotnet build AICompanionsAska.sln -c Release` passou.
 - [ ] O DLL está em `BepInEx\plugins\AI-Companions-Aska\` e é a versão esperada.
-- [ ] Não há outra cópia do mesmo GUID em `plugins\`.
+- [ ] Não há outra cópia do mesmo GUID em `plugins\` (o BepInEx aborta o lote de plugins
+      com erro ao detectar um GUID duplicado; não é “carregar duas vezes”).
 - [ ] O jogo não está aberto no momento do deploy.
 - [ ] Se a fase usa LLM: LM Studio está com o modelo carregado e o Local Server iniciado.
 - [ ] Se a fase usa voz: microfone conectado e modelo presente na pasta do plugin.

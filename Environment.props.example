@@ -1,0 +1,8 @@
+<Project>
+  <!-- Copie este arquivo para Environment.props e ajuste os caminhos da sua máquina.
+       Environment.props é gitignored: caminhos locais não vão para o repositório. -->
+  <PropertyGroup>
+    <AskaDir Condition="'$(AskaDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\ASKA</AskaDir>
+    <DeployDir Condition="'$(DeployDir)' == ''">$(AskaDir)\BepInEx\plugins\AI-Companions-Aska</DeployDir>
+  </PropertyGroup>
+</Project>

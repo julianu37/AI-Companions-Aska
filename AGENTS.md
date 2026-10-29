@@ -76,8 +76,9 @@ dotnet build AICompanionsAska.sln -c Release
     `SandSailorStudio.dll`, `Fusion.Runtime.dll`
   - `BepInEx\unity-libs\UnityEngine.CoreModule.dll` e módulos usados
 - O target `DeployToPlugins` copia o DLL para `$(DeployDir)`.
-- **Não** deixe duas cópias do mod em `plugins\` (uma do Vortex + uma manual): o mesmo GUID
-  carrega duas vezes.
+- **Não** deixe duas cópias do mod em `plugins\` (uma do Vortex + uma manual): o BepInEx
+  detecta o GUID duplicado e **aborta o lote de plugins com erro** (não é “carregar duas
+  vezes”).
 - **Sempre confira a versão carregada** no `LogOutput.log` antes de testar comportamento.
 
 ## 5. Arquitetura do mod
@@ -87,7 +88,9 @@ src/AICompanionsAska/
   Plugin.cs                 entrada BepInEx (BasePlugin)
   Core/
     ModConfig.cs            ConfigEntry (General, AI, Voice, UI)
-    Log.cs                  logging com prefixo
+    AicLog.cs               logging com prefixo [AIC]
+  Diagnostics/
+    EnvironmentReport.cs    versões/caminhos/interop no boot
     GameEnvironment.cs      detecção de mundo/player (fases seguintes)
   AI/
     LlmClient.cs            POST /chat/completions (OpenAI-compatible)
@@ -239,8 +242,9 @@ técnicos.
 
 ## 13. Estado atual
 
-- `v0.1.0` — scaffold: solução, plugin BepInEx 6 que carrega, config inicial, scripts,
-  documentação, agentes e skills.
+- `v0.1.0` — scaffold: solução, plugin BepInEx 6, config inicial, scripts, documentação,
+  agentes e skills. **Build + deploy OK; carregamento em jogo pendente de confirmação** (o
+  `.cfg` do mod ainda não foi criado).
 - **Próximas branches previstas:**
   - `feat/chat-hook` — capturar `ChatMenu.SendPlayerMessage` e provar o caminho do chat.
   - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção.
