@@ -3,6 +3,38 @@
 Todas as mudanças relevantes do projeto. Formato baseado em Keep a Changelog;
 versionamento semântico (`MAJOR.MINOR.PATCH`).
 
+## [0.3.0] — 2026-10-28
+
+### Adicionado
+
+- **Cliente LLM local** (`AI/LlmClient.cs`): `POST {BaseUrl}/chat/completions`
+  OpenAI-compatible, timeout por requisição, `Authorization` opcional, cadeia de formato
+  `json_schema` -> `json_object` -> sem formato.
+- **Parser de intenção** (`AI/LlmIntent.cs`): `action`, `reply`, `target`, `resource`,
+  `amount`; aliases PT-BR/EN; code fence; amount string; `resource` manda quando o modelo
+  devolve o recurso no campo `action`.
+- **Prompt e schema** (`AI/CompanionPrompt.cs` + `AI/LlmProtocol.cs`): persona + contrato,
+  idioma configurado (pt-BR/EN; `auto` = pt-BR nesta fase), `enum` fechado das ações.
+- **Brain** (`AI/CompanionBrain.cs` + `CompanionBrainRunner`): fila, uma requisição por vez,
+  drenagem na main thread, log do intent; self-test por `AI.SelfTest` ou
+  `AIC_LLM_SELFTEST=1`.
+- **Harness** `tests/LlmIntentHarness` (33 casos: parser + URL/schema/format rejection).
+- Config `[AI] Enabled`, `StructuredOutput`, `MaxTokens`, `SelfTest`.
+- Log do intent só no `Drain` (main thread); o texto do chat e o `reply` só aparecem com
+  `VerboseLog=true`.
+
+### Notas
+
+- O LLM **entende** e loga a intenção, mas **ainda não executa** ordens.
+- Chat hook (`/c ...`) continua igual; o brain assina o evento `ChatCapture.Captured`.
+- **Cadeia confirmada com self-test em jogo (2026-10-28):** `ChatCapture` -> `CompanionBrain`
+  -> LM Studio -> ação válida (`follow`/`come`) em `mode=JsonSchema` (~230 ms). Harness:
+  33/33. Evidência: `docs/re/llm-intent-verification.md`.
+- **Pendente:** `/c ...` real em um mundo com o LLM ligado (captura e cadeia já provadas
+  separadamente); será feito na branch `feat/recruit-follow`.
+- O `ChatMenu._OnTextInputSubmit` e o `NetworkChatSession.SendInGameChatMessage` são os
+  caminhos confirmados da captura (v0.2.0).
+
 ## [0.2.0] — 2026-10-28
 
 ### Adicionado

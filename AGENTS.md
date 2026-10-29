@@ -94,24 +94,33 @@ src/AICompanionsAska/
     GameEnvironment.cs      detecção de mundo/player (fases seguintes)
   AI/
     LlmClient.cs            POST /chat/completions (OpenAI-compatible)
+    LlmProtocol.cs          URL/schema/payload/format rejection (puro)
     LlmIntent.cs            parser tolerante do JSON
-    CompanionChat.cs        captura do chat + montagem do prompt
-    CompanionOrders.cs      intenção -> PlayerParty/quests/tasks nativas
-    CompanionPersona.cs     personalidade
-    CompanionMemory.cs      memória curta por companheiro
+    CompanionPrompt.cs      persona + contrato + idioma
+    CompanionBrain.cs       fila, uma requisição por vez, drain na main thread
+    CompanionBrainRunner.cs MonoBehaviour que chama Pump/Drain
+    CompanionOrders.cs      intenção -> PlayerParty/quests/tasks nativas (planejado)
+    CompanionPersona.cs     personalidade (planejado)
+    CompanionMemory.cs      memória curta por companheiro (planejado)
+  Chat/
+    ChatCommand.cs          struct Raw/Text/Addressed/Source/Timestamp
+    ChatAddressing.cs       filtro de prefixo `/c`
+    ChatCapture.cs          evento Captured + last/count/dedupe
   Companion/
-    CompanionRecruit.cs     villager -> PlayerParty
-    CompanionProfile.cs     nome/voz/personalidade por companheiro
-    CompanionSpeech.cs      DialogueMenu + TTS
+    CompanionRecruit.cs     villager -> PlayerParty (planejado)
+    CompanionProfile.cs     nome/voz/personalidade por companheiro (planejado)
+    CompanionSpeech.cs      DialogueMenu + TTS (planejado)
   Voice/
-    VoiceInput.cs           microfone (Unity), trim, WAV
-    WhisperStt.cs           STT local (Whisper.net)
-    CompanionTts.cs         TTS local (sherpa-onnx/Kokoro)
+    VoiceInput.cs           microfone (Unity), trim, WAV (planejado)
+    WhisperStt.cs           STT local (Whisper.net) (planejado)
+    CompanionTts.cs         TTS local (sherpa-onnx/Kokoro) (planejado)
   UI/
-    CompanionPanel.cs       painel in-game (uGUI/TMP)
+    CompanionPanel.cs       painel in-game (uGUI/TMP) (planejado)
   Patches/
-    ChatPatch.cs            Harmony em ChatMenu.SendPlayerMessage
+    ChatPatch.cs            Harmony em _OnTextInputSubmit/SendPlayerMessage/SendInGameChatMessage
     ...
+tests/
+  LlmIntentHarness/         parser + protocolo puros (net8.0)
 ```
 
 **Fluxo de uma ordem:**
@@ -248,10 +257,13 @@ técnicos.
   pré-release no GitHub (DLL, sem gameplay).
 - `v0.2.0` — captura do chat por prefixo `/c`; **confirmada em jogo em 2026-10-28**
   (`_OnTextInputSubmit` + `SendInGameChatMessage`, com dedupe; sem prefixo é ignorado).
-  Evidência: `docs/re/chat-hook-verification.md`. LLM, voz e UI ainda não existem.
+  Evidência: `docs/re/chat-hook-verification.md`.
+- `v0.3.0` (**branch `feat/llm-intent`**) — cliente LM Studio/OpenAI-compatible, schema
+  estrito, parser de intenção e brain com fila. **Cadeia confirmada via self-test** (harness
+  33/33 + `action=follow`/`come` em jogo); ainda **não executa ordens**, sem resposta/voz/UI.
+  Evidência: `docs/re/llm-intent-verification.md`.
 - **Branches:**
-  - `feat/chat-hook` — captura do chat (confirmada em jogo; merge pendente).
-  - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção (próxima).
-  - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir.
+  - `feat/llm-intent` — LLM + parser (cadeia confirmada; merge pendente).
+  - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir (próxima).
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

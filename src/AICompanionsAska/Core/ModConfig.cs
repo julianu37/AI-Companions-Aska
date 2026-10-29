@@ -12,6 +12,10 @@ internal static class ModConfig
     internal static ConfigEntry<bool> VerboseLog = null!;
     internal static ConfigEntry<string> Language = null!;
 
+    internal static ConfigEntry<bool> AiEnabled = null!;
+    internal static ConfigEntry<bool> StructuredOutput = null!;
+    internal static ConfigEntry<int> MaxTokens = null!;
+    internal static ConfigEntry<bool> SelfTest = null!;
     internal static ConfigEntry<string> BaseUrl = null!;
     internal static ConfigEntry<string> Model = null!;
     internal static ConfigEntry<string> ApiKey = null!;
@@ -38,17 +42,33 @@ internal static class ModConfig
         // General
         Enabled = config.Bind(
             "General", "Enabled", true,
-            "Turns the mod on/off. In 0.1.x it gates the chat capture hook (no LLM/voice yet).");
+            "Turns the mod on/off. Gates chat capture; the LLM layer has its own AI.Enabled.");
 
         VerboseLog = config.Bind(
             "General", "VerboseLog", true,
             "Verbose logging (ignored chat messages, prompt/JSON/intents). Turn it off before a release.");
 
         Language = config.Bind(
-            "General", "Language", "auto",
-            "Mod language: auto (follow the game), pt-BR or en.");
+            "General", "Language", "pt-BR",
+            "Mod language: pt-BR or en. auto resolves to pt-BR in this phase (the game's own language is not read yet).");
 
         // AI
+        AiEnabled = config.Bind(
+            "AI", "Enabled", true,
+            "Turns the LLM intent layer on/off. The chat hook still logs when off.");
+
+        StructuredOutput = config.Bind(
+            "AI", "StructuredOutput", true,
+            "Ask for response_format json_schema first; falls back to json_object and then no format.");
+
+        MaxTokens = config.Bind(
+            "AI", "MaxTokens", 220,
+            "Maximum tokens in the LLM response.");
+
+        SelfTest = config.Bind(
+            "AI", "SelfTest", false,
+            "Diagnostic: runs a one-shot LLM self-test on boot and logs the parsed intent. Leave false.");
+
         BaseUrl = config.Bind(
             "AI", "BaseUrl", "http://127.0.0.1:1234/v1",
             "OpenAI-compatible endpoint. Default: local LM Studio. Use 127.0.0.1, not localhost.");
@@ -92,7 +112,7 @@ internal static class ModConfig
         // Voice
         VoiceEnabled = config.Bind(
             "Voice", "Enabled", false,
-            "Turns push-to-talk (STT) on. Not implemented in 0.1.0.");
+            "Turns push-to-talk (STT) on. Not implemented yet.");
 
         PushToTalkKey = config.Bind(
             "Voice", "PushToTalkKey", "V",
