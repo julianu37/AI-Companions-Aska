@@ -32,9 +32,18 @@ por `SSSGame.PlayerHouse.allowPartyManagement`, um bool do componente da casa do
 Cabana do Chefe nível 2 (“Cabana do Chefe Orgulhoso”) é o prédio que o liga; no nível 1 ele
 vem `false`. Para desenvolver/testar sem esperar o late game, a branch
 `feat/recruit-follow` adicionou `General/DebugUnlockParty` (default **false**): com `true`,
-um postfix em `PlayerHouse.Initialize`/`_OnActivate` força o bool para `true` em toda
-`PlayerHouse`. É opt-in de desenvolvimento; não muda nível, receita, custo nem save. A party
-em si continua sendo criada pela UI nativa (o mod não inventa membros).
+um **poll de main thread** (sem Harmony) força o bool para `true` em um `PlayerHouse` já
+instanciado na cena carregada, ≥5 s após o boot com `OwnerStructure` resolvido e ≥5 s de
+estabilidade — nunca durante o load. É opt-in de desenvolvimento; não muda nível, receita,
+custo nem save. A party em si continua sendo criada pela UI nativa (o mod não inventa
+membros).
+
+> **Não repita o erro:** a primeira tentativa usou Harmony em
+> `PlayerHouse.Initialize`/`_OnActivate` e derrubou o jogo (`0xC0000005` em
+> `GameAssembly.dll`). O RE mostrou que `_OnActivate` é um **thunk compartilhado por 29
+> métodos** e que o detour materializa `this` sem validar a classe — a escrita caía em
+> `WeatherManager`, `TaskManager` etc. Ver `docs/re/party-gate-crash.md` e a skill
+> `aska-il2cpp` (armadilhas 14/15).
 
 **Em aberto:** como o jogador recruta (interação “Recrutar” no villager? painel? comando?),
 limite de companheiros, e o que acontece se o villager morrer.

@@ -13,6 +13,8 @@ runtime. Datas e versões são obrigatórias.
 | [`game-systems.md`](game-systems.md) | Namespaces e classes-chave | superfície |
 | [`chat-and-input.md`](chat-and-input.md) | `ChatMenu`, `DialogueMenu`, captura do chat | superfície |
 | [`villager-ai-and-party.md`](villager-ai-and-party.md) | `Villager`, `PlayerParty`, quests/tasks | hipótese |
+| [`party-unlock-plan.md`](party-unlock-plan.md) | Party nativa, `Rpc_ChangePlayerParty`, ordens `follow`/`stop`/`come`, experimento seguro | plano (2026-10-29) |
+| [`party-gate-crash.md`](party-gate-crash.md) | RVAs do crash do `DebugUnlockParty`, stub de 29 aliases, plano de probe | verificado (DB/WER/dump) + hipótese |
 | [`dead-ends.md`](dead-ends.md) | Armadilhas do IL2CPP e caminhos que não repetir | reportado/local |
 
 ## Regras

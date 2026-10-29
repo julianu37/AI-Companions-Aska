@@ -159,20 +159,56 @@ A criação/gestão da party é liberada por **`SSSGame.PlayerHouse.allowPartyMa
 (bool público no interop). A Cabana do Chefe nível 2 (“Cabana do Chefe Orgulhoso”) é o prédio
 que liga o bool; no nível 1 ele vem `false`.
 
-Para desenvolvimento, `General/DebugUnlockParty=true` aplica um postfix em
-`PlayerHouse.Initialize`/`_OnActivate` e força o bool para `true` em toda `PlayerHouse`. O log
-confirmou:
+Para desenvolvimento, `General/DebugUnlockParty=true` já foi implementado de duas formas. A
+**primeira** (Harmony em `PlayerHouse.Initialize`/`_OnActivate`) está **descartada**: o patch
+disparou 16x, mas `PlayerHouse._OnActivate` aponta para um **thunk compartilhado** em
+`GameAssembly + 0x8009B0`, com **29 aliases** (`WeatherManager.Awake`, `TaskManager.Awake`,
+`SettlementManager.Awake`, `VillagerSelectionManager.Awake`, ...). O detour materializa `this`
+como o tipo declarado e `__instance is PlayerHouse` é **sempre verdadeiro** (o
+`Il2CppObjectPool.Get<T>` não valida a classe nativa); a escrita do bool caiu em objetos de
+outras classes e corrompeu memória. Não foi AOT/inline: foi alias de endereço + tipo mentiroso.
+Os RVAs de crash foram `0xF72955` (`WeatherManager`), `0x4525346`
+(`UnityEngine.Object.op_Equality`) e `0x112B70D` (`VillagerSelectionManager`). Evidência
+completa: **`docs/re/party-gate-crash.md`**.
+
+A **segunda** forma é a atual (`PlayerHousePartyUnlock.cs`): **poll de main thread, sem
+Harmony**. `Apply()` só arma o poll; `Tick()` (chamado pelo `CompanionBrainRunner.Update`)
+espera ~5 s de boot + ~5 s de settle, usa `FindAnyObjectByType<PlayerHouse>()` **singular**
+(a variante plural estoura `MissingMethodException` nesta build), exige `OwnerStructure != null`
+e cena carregada, e só então escreve `allowPartyManagement = true` em uma instância real, fora
+de qualquer callback de lifecycle. `PlayerHouse` deriva de `MonoBehaviour` real (unity-libs):
+**não existe `WasCollected`**; para null-check use o `==` do Unity.
+
+**Fire-verify de 2026-10-29 18:43 (confirmado):**
 
 ```text
-[AIC][PARTY] DebugUnlockParty applied: SSSGame.PlayerHouse.Initialize, SSSGame.PlayerHouse._OnActivate
-[AIC][PARTY] PlayerHouse allowPartyManagement: False -> true (debug unlock, ...)
+[AIC][PARTY] DebugUnlockParty armed (no Harmony patch)
+[AIC][DEBUG] [PARTY] unlock poll: id=0 state=NoHouse
 ```
 
-A party em si continua sendo criada pela UI nativa; o mod não inventa membros. O probe
-`CompanionPartyProbe` lê `_partyMembers`/`_partyPets`/`_pc` com polling de 1 Hz; antes da
-criação da party ele mostra `members=0 authority=False pc=?` (a party é um componente de cena
-sem membros). Depois que a party for criada, os nomes (Thorin, Maria, ...) devem aparecer e
-ser registrados no `CompanionRegistry`.
+No menu, sem crash e sem `Disarm` → o `FindAnyObjectByType<PlayerHouse>()` não lançou
+`MissingMethodException`. **A escrita do bool em jogo ainda não foi confirmada.**
+
+O probe `CompanionPartyProbe` também estava **cego**: usava `Type.GetField` para `_pc`,
+`_partyMembers`, `_partyPets`, `_followQuest` e `_hasAuthority`, mas no interop esses membros
+são **propriedades**. O log `members=0 authority=False pc=?` era artefato, não observação.
+O probe foi corrigido para acesso tipado (`party._pc`, `party._partyMembers`,
+`party._partyPets`, `party._hasAuthority`, `party._followQuest`), com `try/catch` por leitura e
+`?` por membro quando a leitura falha; com `count > 0`, `Thorin`/`Maria` passam a ser
+registrados no `CompanionRegistry`. Ele agora é **100% poll**:
+`FindAnyObjectByType<PlayerParty>()` singular no `Tick` (1 Hz), sem Harmony, sem patch de
+`Spawned`/`Start`/`Despawned`. O estado real da party precisa ser **reobservado** depois dessa
+correção.
+
+Regras que ficam:
+
+- **Nunca** patchar `PlayerHouse._OnActivate`/`OnDestroy` (aliases 29 e 26) nem confiar em
+  `__instance is T` como guarda de tipo.
+- `PlayerHouse.Initialize` é único, mas mutar campo ali ainda não é o caminho recomendado.
+- Preferir **poll pós-load** com propriedade tipada/`FindAnyObjectByType` singular; a branch
+  está pausada, **sem merge**, até a escrita do bool e a party serem confirmadas em jogo.
+- Evidência completa, RVAs e plano de probe: **`docs/re/party-gate-crash.md`** e
+  **`docs/re/party-unlock-plan.md`**.
 
 ## 8. Perguntas abertas
 

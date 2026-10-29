@@ -3,20 +3,39 @@
 Todas as mudanças relevantes do projeto. Formato baseado em Keep a Changelog;
 versionamento semântico (`MAJOR.MINOR.PATCH`).
 
-## [0.5.0] — em andamento (`feat/recruit-follow`)
+## [0.5.0] — em andamento (`feat/recruit-follow`, **pausado em 2026-10-29**)
+
+> **Não mergeada na `main`.** Falta confirmação em jogo do unlock, da party e das ordens.
+> Estado e próximo passo: `docs/handoff.md`.
 
 ### Adicionado
 
 - **Gate da party descoberto:** `SSSGame.PlayerHouse.allowPartyManagement`; a Cabana do Chefe
-  nível 2 liga o bool. `General/DebugUnlockParty` (dev, default false) força `true` em toda
-  `PlayerHouse` via postfix em `Initialize`/`_OnActivate`.
-- **Probe `PlayerParty`:** lê `_partyMembers`/`_partyPets`/`_pc` com polling de 1 Hz e
-  registra os nomes no `CompanionRegistry` (Thorin, Maria, ...).
+  nível 2 liga o bool. `General/DebugUnlockParty` (dev, default false) usa **poll de main
+  thread sem Harmony**, que escreve o bool só depois do load, em `PlayerHouse` de cena com
+  `OwnerStructure` resolvido e 5 s de estabilidade.
+- **Probe `PlayerParty`:** leitura com polling de 1 Hz e registro dos nomes no
+  `CompanionRegistry`.
+- **Mapeamento da membership:** fica no `Villager` (`_playerParty`, `__PlayerPartyID`,
+  `Rpc_ChangePlayerParty`), não na `PlayerParty`; `PartyFollowQuest` é quem faz o follow.
+- **Ferramenta de RE:** `docs/re/tools/rva-to-method.fsx` mapeia RVA → método e mostra
+  aliases (rodar antes de qualquer Harmony patch).
+
+### Corrigido
+
+- **Crash nativo do unlock de dev** (`0xC0000005`, `GameAssembly+0xF72955`): era um patch
+  Harmony em `PlayerHouse._OnActivate`, um **thunk compartilhado por 29 métodos**. O detour
+  materializa `this` sem validar a classe, e a escrita do bool caía em `WeatherManager`,
+  `TaskManager` etc. Regras novas na skill `aska-il2cpp` (armadilhas 14/15).
+- **Versão bumpada para 0.5.0** (`PluginInfo` + `.csproj`), para o log identificar o build.
 
 ### Pendente
 
-- Criar a party com Thorin/Maria na UI nativa (com o unlock ligado).
-- Executar `follow`/`stop`/`come` no villager nomeado.
+- Confirmar a escrita `trigger=post-load` em jogo (armou e fez poll sem crash; não escreveu).
+- Reobservar o probe corrigido (`pc`/`authority`/`count`/nomes) — o anterior usava `GetField`
+  em membros que são *properties* no interop e por isso sempre logava `members=0`.
+- Criar a party com Thorin/Maria na UI nativa.
+- Executar `follow`/`stop`/`come`; `come` só se o experimento nativo aprovar.
 - Feedback no chat/balão.
 
 ## [0.4.0] — 2026-10-28

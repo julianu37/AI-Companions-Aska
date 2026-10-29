@@ -233,6 +233,7 @@ técnicos.
 | `docs/design.md` | Decisões: companheiro, LLM, voz, UI, co-op |
 | `docs/branches.md` | Política de branches/commits/merges |
 | `docs/testing.md` | Matriz de testes, logs, crashes, release gate |
+| `docs/handoff.md` | **Onde o projeto parou e qual é o próximo passo seguro** (retomada) |
 | `docs/re/` | Engenharia reversa do ASKA/IL2CPP |
 | `docs/references.md` | Fontes, créditos e licenças |
 | `THIRD_PARTY_NOTICES.md` | Licenças de terceiros |
@@ -269,11 +270,18 @@ técnicos.
   com identidade e resposta no chat via `ChatMenu._AddNewTextLine`. **Confirmado em jogo em
   2026-10-29** (`Thorin, bom dia` -> linha `Thorin: ...`; `Thorin, vem comigo` -> `action=come`).
   Harness 41/41. Evidência: `docs/re/chat-reply-verification.md`.
-- `v0.5.0` (**branch `feat/recruit-follow`**, em andamento) — gate da party descoberto:
-  `PlayerHouse.allowPartyManagement` (Cabana do Chefe lvl 2). `General/DebugUnlockParty`
-  força o bool para desenvolvimento; probe `PlayerParty` lê membros/pets/nomes com polling.
-  **Ainda não executa ordens**; a party precisa ser criada na UI nativa.
+- `v0.5.0` (**branch `feat/recruit-follow`**, em andamento, **pausado em 2026-10-29**) —
+  gate da party descoberto: `PlayerHouse.allowPartyManagement` (Cabana do Chefe lvl 2).
+  `General/DebugUnlockParty` (default false) usa **poll de main thread** (sem Harmony) para
+  forçar o bool só depois do load; confirmado que arma e faz poll sem crash, mas a **escrita
+  em jogo ainda não foi confirmada**. Membership da party mora no **villager**
+  (`Rpc_ChangePlayerParty`), não na `PlayerParty`. **Ainda não executa ordens.** Ver
+  `docs/handoff.md`.
+  - O crash do unlock antigo (`0xC0000005`, `GameAssembly+0xF72955`) foi causado por patch
+    Harmony em `PlayerHouse._OnActivate`, que é um **thunk compartilhado por 29 métodos**;
+    o detour materializa `this` sem validar classe e a escrita corrompia memória de
+    `WeatherManager`/`TaskManager`. Evidência: `docs/re/party-gate-crash.md`.
 - **Branches:**
-  - `feat/recruit-follow` — unlock/probe da party + ordens `follow`/`stop`/`come` (em andamento).
+  - `feat/recruit-follow` — unlock/probe da party + ordens `follow`/`stop`/`come` (pausado, **não mergear**).
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

@@ -68,6 +68,37 @@ O cache de descoberta pode ficar velho depois de mover/adicionar DLLs.
 > `AI.SelfTest` é diagnóstico: deixe `false` fora de um teste. O self-test injeta a mensagem no
 > `ChatCapture` (não no chat do jogo), então ele prova a cadeia sem precisar entrar em um mundo.
 
+### Fase party + ordens (M1.6, branch `feat/recruit-follow`)
+
+Pré-requisito: o log precisa identificar o build — confirme `[AIC] AI Companions - ASKA 0.5.0`.
+Preserve o `LogOutput.log` de **cada** run (o BepInEx sobrescreve a cada sessão).
+
+| Caso | Preparação | Esperado |
+|---|---|---|
+| **A0 — controle sem o mod** | DLL fora de `plugins\AI-Companions-Aska\` (`Enabled=false` **não** basta) | 3 loads do save sem crash; `Player.log` passa de `[Weather System] Weather Forcast Reset` e chega ao mundo. **Se crashar aqui, o problema é do jogo/save, não da branch.** |
+| **A1 — mod, unlock off** | `DebugUnlockParty=false` | 3 loads, sem crash; `debugUnlockParty=False`; nenhuma linha `allowPartyManagement: False -> true` |
+| **A2 — mod, unlock novo** | `DebugUnlockParty=true`, build 0.5.0 | `DebugUnlockParty armed (no Harmony patch)`; após 5 s + settle, `allowPartyManagement: False -> true (..., trigger=post-load)`; **nenhum** dump novo |
+| Poll não encontrou casa | no menu | `[AIC][DEBUG] unlock poll: id=0 state=NoHouse` (esperado; não é falha) |
+| Unlock degradou | qualquer erro de interop | `DebugUnlockParty disabled: <motivo>`; jogo continua |
+| Probe corrigido | entrar no mundo | `pc=<jogador>`, `authority=...`, `count=0` (antes logava `pc=? members=0` fixo) |
+| Party criada (UI nativa) | juntar Thorin | `count 0->1`, `names=Thorin`, `followQuest=True` |
+| Segundo membro | juntar Maria | `count 1->2`, `Maria` no `CompanionRegistry`; `Maria, oi` passa a ser endereçado |
+| Ordem `follow` | `Thorin, segue` | `action=follow` + `[AIC][ORDER]` com alvo Thorin + villager segue 10–20 m |
+| Ordem `stop` | `Thorin, para` | para de seguir; estado nativo consistente |
+| Ordem `come` | `Thorin, vem` | aproxima — ou recusa honestamente se não entrar nesta fase |
+| Nome inválido | `Thorinzinho, oi` | ignorado, sem exceção |
+| Save/reload | salvar, sair, voltar | vínculo restaurado, sem crash |
+
+**Se crashar de novo:**
+
+1. Anotar hora e PID (`Get-Process Aska`) e copiar `LogOutput.log`, `ErrorLog.log` e
+   `%LOCALAPPDATA%\CrashDumps\Aska.exe.<PID>.dmp`.
+2. `dotnet fsi docs/re/tools/rva-to-method.fsx 0x<rva>` e **conferir `aliases`**.
+3. Se o método estiver num thunk com `aliases > 1` (ou o fault terminar em `…1`), é corrupção
+   de referência por patch: abandonar o patch e registrar em `docs/re/dead-ends.md`.
+4. Se crashar também em **A0**, o problema é do jogo/save — a branch não é a causa.
+5. Não repetir o run sem backup de `...\LocalLow\Sand Sailor Studio\Aska\data`.
+
 ### Fase voz (M4/M5)
 
 | Caso | Passos | Esperado |
@@ -116,10 +147,14 @@ coreclr.dll+0x1d1fdd ...       crash nativo (WER)
 
 - **`MissingMethodException`** pode falhar no JIT do método inteiro; remova a referência ou
   isole o método.
-- **Crash nativo sem exceção gerenciada**: mapear o offset do WER com Cpp2IL/`dumpbin` e
-  registrar em `docs/re/dead-ends.md`.
+- **Crash nativo sem exceção gerenciada**: mapeie o RVA do WER com
+  `dotnet fsi docs/re/tools/rva-to-method.fsx 0x<rva>` **antes** de qualquer hipótese; confira
+  `aliases`. Se o método tiver `aliases > 1`, é thunk compartilhado e o patch entra em todos.
+  Registre em `docs/re/dead-ends.md`.
 - **Patch que não dispara**: provável AOT inlining; trocar para método virtual/público e
   fire-verificar.
+- **Patch que dispara em objeto errado**: `is T`/`as T` não valem como guarda — o detour
+  materializa `this` como o tipo patcheado. Ver skill `aska-il2cpp` #14/#15.
 
 ## 5. Performance
 
@@ -156,10 +191,15 @@ coreclr.dll+0x1d1fdd ...       crash nativo (WER)
 Um release só sai quando:
 
 - [ ] build limpo;
+- [ ] **versão bumpada** (`PluginInfo` + `.csproj`) e a linha `[AIC] ... <versão>` batendo com
+      o pacote (sem isso o log não distingue builds);
 - [ ] carregamento confirmado no log;
+- [ ] **controle A0** (sem o mod) e **A1** (unlock off) sem crash, antes de qualquer conclusão
+      sobre a branch;
 - [ ] todos os casos da fase marcados como **confirmados em jogo**;
 - [ ] nenhuma feature “não testada” escondida atrás de um default `false` (se está no pacote,
       o jogador pode ligar; então precisa estar testada ou não pode existir);
+- [ ] nenhum `TODO`/código sem chamador exposto (ex.: `TryUnlockNow` sem comando);
 - [ ] licenças e créditos atualizados;
 - [ ] `CHANGELOG.md`/release notes escritos;
 - [ ] tag na `main` e pacote publicado.

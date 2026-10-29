@@ -65,12 +65,19 @@ também responde; mensagem sem nome/prefixo continua ignorada. A linha visual é
 
 - [x] Localizar o gate nativo da party: `SSSGame.PlayerHouse.allowPartyManagement`; a Cabana
   do Chefe nível 2 liga esse bool.
-- [x] `General/DebugUnlockParty` (dev, default false): força o bool `true` em toda
-  `PlayerHouse`; log confirma `False -> true`.
+- [x] `General/DebugUnlockParty` (dev, default false): **poll de main thread** (sem Harmony)
+  força o bool `true` só depois do load, em `PlayerHouse` de cena com `OwnerStructure`
+  resolvido. Confirmado: armou e ficou `state=NoHouse` no menu, sem crash. Escrita em jogo
+  **pendente de confirmação**.
 - [x] Probe `PlayerParty`: lê `_partyMembers`/`_partyPets`/`_pc` com polling e registra os
   nomes no `CompanionRegistry`.
+- [x] Mapear a membership: mora no **villager** (`_playerParty`, `__PlayerPartyID`,
+  `Rpc_ChangePlayerParty`), não na `PlayerParty`. Plano em
+  `docs/re/party-unlock-plan.md`.
+- [ ] Confirmar em jogo o unlock pós-load (`False -> true (trigger=post-load)`).
 - [ ] Criar a party com Thorin/Maria na UI nativa (com o unlock ligado).
-- [ ] Executar `follow`/`stop`/`come` no villager nomeado.
+- [ ] Executar `follow`/`stop`/`come` no villager nomeado (`Rpc_ChangePlayerParty` para
+  entrar/sair; `PartyFollowQuest` faz o follow).
 - [ ] Feedback no chat/balão para ordem executada ou recusada.
 
 **Aceite:** com a party criada, `Thorin, segue` mantém o villager seguindo; `Thorin, para`

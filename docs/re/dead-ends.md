@@ -239,3 +239,53 @@ patch/lifecycle, não de `FindObjects*`.
 - Causa (se conhecida) e o que **não** fazer.
 - Alternativa que funciona.
 - Link para o log/issue/handoff.
+
+## 21. Um método do interop pode ser um stub compartilhado por dezenas de métodos
+
+**Status:** local (verificado em 2026-10-29, ASKA 0.4 / metadata v39).
+
+**Sintoma:** patch Harmony "em `X.Y`" dispara para objetos que não são `X`, e o jogo morre com
+AV nativo em locais sem relação (`WeatherManager`, `Object.op_Equality`,
+`VillagerSelectionManager`) sem stack gerenciada.
+
+**Causa:** o ponteiro nativo de vários métodos aponta para o **mesmo** endereço. Medido nesta
+build com `BepInEx\interop\MethodAddressToToken.db`:
+
+```text
+SSSGame.PlayerHouse::_OnActivate          -> 0x8009B0  (29 aliases, thunk de 7 bytes)
+SSSGame.PlayerHouse::OnDestroy            -> 0xA765A0  (26 aliases)
+SSSGame.PlayerHouse::get_OwnerStructure   -> 0x6B1D70  (403 aliases)
+SSSGame.PlayerParty::Spawned / Start      -> únicos (1 alias) — seguros
+SSSGame.UI.ChatMenu::_OnTextInputSubmit   -> único — seguro
+```
+
+Harmony/Il2CppInterop patcha **por endereço**: o detour entra em todos os aliases.
+
+**Não fazer:** patch de mutação em método com `aliases > 1`; nem assumir que o nome do método
+implica corpo próprio.
+
+**Alternativa:** antes de qualquer patch, rode
+`dotnet fsi docs/re/tools/rva-to-method.fsx 0x<rva>` e confira `aliases`. Se `> 1`, procure um
+método irmão único ou troque a abordagem (observar estado em vez de hookar).
+
+## 22. `__instance is T` não é guarda de tipo em patch IL2CPP
+
+**Status:** local (verificado no fonte do Il2CppInterop + crash de 2026-10-29).
+
+**Sintoma:** o postfix loga `... PlayerHouse ...` para objetos que não são `PlayerHouse` e/ou
+escrever um campo no `__instance` corrompe campos de outros componentes (crash posterior em
+offset alheio).
+
+**Causa:** `Il2CppDetourMethodPatcher` converte o `this` nativo com
+`Il2CppObjectPool.Get<T>(ptr)`, onde `T` é o tipo **declarado** do parâmetro do patch, e
+`Get<T>` não valida a classe real do ponteiro. Logo, `__instance` é um wrapper do tipo do alvo
+do patch, mesmo que o objeto nativo seja de outra classe — e `house.campo = valor` escreve em
+`ptr + offset(campo)` **naquele** objeto.
+
+**Não fazer:** usar `is`/cast para decidir se pode mutar; nem mutar campos a partir de
+`__instance` de um método compartilhado.
+
+**Alternativa:** comparar a classe nativa de verdade
+(`IL2CPP.il2cpp_object_get_class(ptr)` + `il2cpp_class_get_name`) e, de preferência, obter a
+instância por API tipada (`FindObjectsOfType<T>()`, `__instance` de método *unique*) em vez de
+herdar o wrapper do patch. Ver `docs/re/party-gate-crash.md` §3.

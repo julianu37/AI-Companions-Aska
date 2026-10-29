@@ -106,3 +106,33 @@ throttle; para filhos, caminhe a hierarquia com `GetComponent<T>()`.
   processo no load.
 - Prefira `Character.Start`/`Despawned` ou busca sob demanda.
 - Documente a combinação testada.
+
+## 14. Thunk/stub compartilhado (`aliases > 1`) — mata o processo
+
+**Sintoma:** `0xC0000005` em `GameAssembly.dll`, em RVA **sem relação** com o método patcheado
+(ex.: crash dentro de `WeatherManager::Instance_OnWeatherUpdate`, `UnityEngine.Object::op_Equality`).
+
+**Causa (confirmada em 2026-10-29):** vários métodos IL2CPP podem compartilhar o mesmo endereço
+nativo (thunk de 7 bytes). `PlayerHouse::_OnActivate` tem **29 aliases** — entre eles
+`WeatherManager.Awake`, `TaskManager.Awake`, `SettlementManager.Awake`. O Harmony patcheia o
+endereço, logo entra nos 29. O postfix então roda em objetos de **outras classes** e escreve no
+offset do campo (aqui `allowPartyManagement@0x30`), corrompendo memória. O crash aparece depois,
+em outro sistema, o que engana o diagnóstico.
+
+**O que fazer:**
+
+- Antes de qualquer patch, rode `docs/re/tools/rva-to-method.fsx` (ou consulte o
+  `MethodAddressToToken.db`) e **exija `aliases == 1`**.
+- `OnDestroy`, `Awake` e getters triviais costumam ter dezenas de aliases.
+- Prefira poll na main thread (`FindAnyObjectByType<T>()` + gates) a patch de lifecycle.
+
+## 15. `is T` / `as T` como guarda de tipo mentem
+
+**Sintoma:** o postfix "acha" que o objeto é do tipo patcheado mesmo quando não é; ou `as T`
+devolve `null` para um objeto que é `T`.
+
+**Causa:** o `Il2CppDetourMethodPatcher` materializa `this` com
+`Il2CppObjectPool.Get<T>` e **não valida a classe nativa**. O wrapper é `T` por construção.
+
+**O que fazer:** nunca use `is`/`as` como filtro de tipo em postfix. Valide com
+`obj.GetType()`/`ObjectClass` contra a classe esperada, ou evite o patch. Ver item 14.

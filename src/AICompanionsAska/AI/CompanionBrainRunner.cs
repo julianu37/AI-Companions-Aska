@@ -15,6 +15,11 @@ public sealed class CompanionBrainRunner : MonoBehaviour
     private void Update()
     {
         CompanionPartyProbe.Tick();
+
+        // Dev-only (General/DebugUnlockParty): força o gate da party depois do
+        // load. Sem Harmony e sem tocar em estado durante a desserialização.
+        PlayerHousePartyUnlock.Tick();
+
         CompanionBrain.Drain();
 
         if (Time.unscaledTime < _nextPump)

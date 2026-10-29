@@ -31,12 +31,20 @@ qualquer interação com `SSSGame.*`/`SandSailorStudio.*`.
    nativa (`IL2CPP.il2cpp_object_get_class` + `il2cpp_class_get_name`).
 9. **Logs** de structs do Unity via `.ToString()`.
 10. **Autoridade**: `HasAuthority`/`Runner.IsServer` antes de escrever estado de rede.
+11. **Confira `aliases` antes de qualquer patch**: vários métodos compartilham o mesmo endereço
+    nativo (thunk). `dotnet fsi docs/re/tools/rva-to-method.fsx 0x<rva>` — se `aliases > 1`, o
+    patch entra em todos e você vai escrever no objeto errado. Ex.: `PlayerHouse::_OnActivate`
+    tem **29** aliases (causou `0xC0000005` em `WeatherManager`).
+12. **`is T`/`as T` não são guarda de tipo** em prefix/postfix: o detour materializa `this` como
+    o tipo patcheado sem validar a classe nativa.
 
 ## Referências
 
-- `references/harmony-pitfalls.md` — lista detalhada com sintoma/causa/alternativa.
+- `references/harmony-pitfalls.md` — lista detalhada com sintoma/causa/alternativa (#14 thunk
+  compartilhado, #15 `is T` que mente).
 - `references/interop-patterns.md` — captura de instância, polling, casts, listas, strings.
 - `references/native-crashes.md` — WER, Cpp2IL, `coreclr.dll+0x1d1fdd`, o que fazer.
+- Ferramenta: `docs/re/tools/rva-to-method.fsx` (RVA → método + aliases).
 
 ## Fluxo
 

@@ -1,39 +1,43 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using AICompanionsAska.Chat;
 using AICompanionsAska.Core;
-using HarmonyLib;
+using SSSGame;
+using SSSGame.AI;
 using UnityEngine;
 
 namespace AICompanionsAska.Companion;
 
 /// <summary>
-/// Probe read-only da <c>SSSGame.PlayerParty</c>. No <c>Spawned</c>/<c>Start</c>
-/// a party costuma estar vazia (os membros vêm da desserialização); por isso
-/// guardamos as instâncias e fazemos polling de 1 Hz no <c>Update</c> até os
-/// nomes aparecerem. Registra os nomes no <see cref="CompanionRegistry"/>.
+/// Probe read-only da <c>SSSGame.PlayerParty</c>, 100% poll tipado.
 /// <para>
-/// Não move ninguém; é o primeiro passo de <c>feat/recruit-follow</c>.
+/// Não usa Harmony: <c>Spawned</c>/<c>Start</c> podem ser thunks compartilhados
+/// (como <c>PlayerHouse._OnActivate</c>, com 29 aliases) e a guarda
+/// <c>is PlayerParty</c> não protege contra o wrapper de tipo declarado. O
+/// <c>Tick</c> procura a party com <c>FindAnyObjectByType&lt;PlayerParty&gt;()</c>
+/// (singular), lê as propriedades tipadas e registra os nomes no
+/// <see cref="CompanionRegistry"/>.
+/// </para>
+/// <para>
+/// No interop, <c>_pc</c>, <c>_partyMembers</c>, <c>_partyPets</c>,
+/// <c>_hasAuthority</c> e <c>_followQuest</c> são <b>propriedades</b>, não campos.
+/// O probe antigo usava <c>Type.GetField</c> e lia sempre nulo.
 /// </para>
 /// </summary>
 internal static class CompanionPartyProbe
 {
-    private const string HarmonyId = PluginInfo.Guid + ".party";
-    private const string PlayerPartyTypeName = "SSSGame.PlayerParty";
     private const float PollIntervalSeconds = 1f;
-    private const float MaxPollSeconds = 90f;
 
     private static readonly object Sync = new();
-    private static readonly List<object> Parties = new();
     private static readonly Dictionary<int, string> LastSignature = new();
-    private static readonly Dictionary<int, float> FirstSeen = new();
-    private static Harmony? _harmony;
+    private static readonly HashSet<string> Warned = new();
+
     private static float _nextPoll;
+    private static bool _loggedNoParty;
 
     internal static bool Applied { get; private set; }
 
+    /// <summary>Chamado do <c>Plugin.Load</c>. Só inicializa estado; não patcheia nada.</summary>
     internal static void Apply()
     {
         if (Applied)
@@ -41,89 +45,46 @@ internal static class CompanionPartyProbe
 
         try
         {
-            Type? partyType = ResolveGameType(PlayerPartyTypeName);
-            if (partyType is null)
+            if (ModConfig.Enabled is { Value: false })
             {
-                AicLog.Warn($"[PARTY] type not found: {PlayerPartyTypeName}; names will not be auto-registered.");
+                AicLog.Flow("PARTY", "probe not armed (General/Enabled=false).");
                 return;
             }
 
-            MethodInfo? postfix = typeof(CompanionPartyProbe).GetMethod(
-                nameof(Postfix),
-                BindingFlags.Static | BindingFlags.NonPublic);
-            if (postfix is null)
-            {
-                AicLog.Error("[PARTY] internal error: CompanionPartyProbe.Postfix not found.");
-                return;
-            }
-
-            var harmony = new Harmony(HarmonyId);
-            var applied = new List<string>();
-
-            foreach (string methodName in new[] { "Spawned", "Start" })
-            {
-                MethodInfo? target = ResolveMethod(partyType, methodName);
-                if (target is null)
-                    continue;
-
-                try
-                {
-                    harmony.Patch(target, postfix: new HarmonyMethod(postfix));
-                    applied.Add($"{PlayerPartyTypeName}.{methodName}()");
-                }
-                catch (Exception ex)
-                {
-                    AicLog.Warn($"[PARTY] failed to patch {methodName}: {ex.GetType().Name}: {ex.Message}");
-                }
-            }
-
-            if (applied.Count == 0)
-            {
-                AicLog.Warn("[PARTY] no PlayerParty lifecycle method patched; names will not be auto-registered.");
-                return;
-            }
-
-            _harmony = harmony;
-            Applied = true;
             lock (Sync)
             {
-                Parties.Clear();
                 LastSignature.Clear();
-                FirstSeen.Clear();
+                Warned.Clear();
             }
-            _nextPoll = 0f;
 
-            AicLog.Flow("PARTY", $"probe applied: {string.Join(", ", applied)}");
+            _nextPoll = 0f;
+            _loggedNoParty = false;
+            Applied = true;
+
+            AicLog.Flow("PARTY", "probe armed (poll-only).");
         }
         catch (Exception ex)
         {
             Applied = false;
-            _harmony = null;
-            AicLog.Error($"[PARTY] probe failed to apply: {ex.GetType().Name}: {ex.Message}");
+            AicLog.Error($"[PARTY] probe failed to arm: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
     internal static void Unapply()
     {
-        try
+        bool wasApplied = Applied;
+        Applied = false;
+
+        lock (Sync)
         {
-            _harmony?.UnpatchSelf();
+            LastSignature.Clear();
+            Warned.Clear();
         }
-        catch (Exception ex)
-        {
-            AicLog.Warn($"[PARTY] unpatch failed: {ex.GetType().Name}: {ex.Message}");
-        }
-        finally
-        {
-            _harmony = null;
-            Applied = false;
-            lock (Sync)
-            {
-                Parties.Clear();
-                LastSignature.Clear();
-                FirstSeen.Clear();
-            }
-        }
+
+        _loggedNoParty = false;
+
+        if (wasApplied)
+            AicLog.Flow("PARTY", "probe disarmed (poll-only).");
     }
 
     /// <summary>Chamado pelo <see cref="CompanionBrainRunner.Update"/> — main thread.</summary>
@@ -137,93 +98,210 @@ internal static class CompanionPartyProbe
             return;
         _nextPoll = now + PollIntervalSeconds;
 
-        object[] snapshot;
-        lock (Sync)
-            snapshot = Parties.ToArray();
-
-        foreach (object party in snapshot)
+        PlayerParty? party;
+        try
         {
-            try
-            {
-                LogParty(party, force: false);
-            }
-            catch (Exception ex)
-            {
-                AicLog.Warn($"[PARTY] poll failed: {ex.GetType().Name}: {ex.Message}");
-            }
+            party = UnityEngine.Object.FindAnyObjectByType<PlayerParty>();
         }
-
-        // Para de pollar depois de um tempo; o probe já cumpriu o papel.
-        lock (Sync)
+        catch (Exception ex)
         {
-            foreach (int key in new List<int>(FirstSeen.Keys))
-            {
-                if (now - FirstSeen[key] > MaxPollSeconds)
-                {
-                    FirstSeen.Remove(key);
-                    LastSignature.Remove(key);
-                    Parties.RemoveAll(p => RuntimeHelpers.GetHashCode(p) == key);
-                }
-            }
-        }
-    }
-
-    private static void Postfix(object __instance)
-    {
-        if (__instance is null)
+            Disarm($"FindAnyObjectByType<PlayerParty>() failed: {ex.GetType().Name}: {ex.Message}");
             return;
+        }
 
-        int key = RuntimeHelpers.GetHashCode(__instance);
-        lock (Sync)
+        if (party == null)
         {
-            if (!FirstSeen.ContainsKey(key))
-                FirstSeen[key] = Time.unscaledTime;
-
-            bool known = false;
-            foreach (object party in Parties)
+            if (!_loggedNoParty)
             {
-                if (RuntimeHelpers.GetHashCode(party) == key)
-                {
-                    known = true;
-                    break;
-                }
+                _loggedNoParty = true;
+                AicLog.Flow("PARTY", "state=NoParty (poll-only); waiting for PlayerParty.");
             }
 
-            if (!known)
-                Parties.Add(__instance);
+            return;
+        }
+
+        _loggedNoParty = false;
+
+        int key;
+        try
+        {
+            key = party.GetInstanceID();
+        }
+        catch (Exception ex)
+        {
+            Disarm($"PlayerParty.GetInstanceID() failed: {ex.GetType().Name}: {ex.Message}");
+            return;
         }
 
         try
         {
-            LogParty(__instance, force: true);
+            LogParty(party, key);
         }
         catch (Exception ex)
         {
-            AicLog.Warn($"[PARTY] probe failed: {ex.GetType().Name}: {ex.Message}");
+            AicLog.Warn($"[PARTY] poll failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
-    private static void LogParty(object party, bool force)
+    private static void Disarm(string reason)
     {
-        int key = RuntimeHelpers.GetHashCode(party);
-        object? pc = GetField(party, "_pc");
-        string pcName = GetMemberName(pc) ?? "?";
-        bool authority = ReadBool(party, "_hasAuthority");
-        bool followQuest = GetField(party, "_followQuest") is not null;
-        object? members = GetField(party, "_partyMembers");
-        object? pets = GetField(party, "_partyPets");
-        List<string> memberNames = GetListNames(members);
-        List<string> petNames = GetListNames(pets);
+        if (!Applied)
+            return;
 
-        foreach (string name in memberNames)
-            CompanionRegistry.Register(name);
-        foreach (string name in petNames)
-            CompanionRegistry.Register(name);
+        Applied = false;
+
+        lock (Sync)
+        {
+            LastSignature.Clear();
+            Warned.Clear();
+        }
+
+        _loggedNoParty = false;
+
+        AicLog.Warn($"[PARTY] probe disarmed (poll-only): {reason}");
+    }
+
+    private static void LogParty(PlayerParty party, int key)
+    {
+        // Cada leitura é independente: uma propriedade problemática não pode
+        // esconder as outras nem inventar "false/0" no log.
+        PlayerCharacter? pc = null;
+        bool pcOk = false;
+        try
+        {
+            pc = party._pc;
+            pcOk = true;
+        }
+        catch (Exception ex)
+        {
+            WarnOnce(key, "_pc", ex);
+        }
+
+        string pcName = !pcOk
+            ? "?"
+            : (pc is null ? "null" : ReadName(() => pc!.GetName(), key, "_pc.GetName"));
+
+        bool authority = false;
+        bool authorityOk = false;
+        try
+        {
+            authority = party._hasAuthority;
+            authorityOk = true;
+        }
+        catch (Exception ex)
+        {
+            WarnOnce(key, "_hasAuthority", ex);
+        }
+
+        PartyFollowQuest? followQuest = null;
+        bool followOk = false;
+        try
+        {
+            followQuest = party._followQuest;
+            followOk = true;
+        }
+        catch (Exception ex)
+        {
+            WarnOnce(key, "_followQuest", ex);
+        }
+
+        Il2CppSystem.Collections.Generic.List<Villager>? members = null;
+        bool membersOk = false;
+        try
+        {
+            members = party._partyMembers;
+            membersOk = true;
+        }
+        catch (Exception ex)
+        {
+            WarnOnce(key, "_partyMembers", ex);
+        }
+
+        Il2CppSystem.Collections.Generic.List<Pet>? pets = null;
+        bool petsOk = false;
+        try
+        {
+            pets = party._partyPets;
+            petsOk = true;
+        }
+        catch (Exception ex)
+        {
+            WarnOnce(key, "_partyPets", ex);
+        }
+
+        int memberCount = 0;
+        bool memberCountOk = false;
+        string membersText;
+        List<string> memberNames;
+        if (!membersOk)
+        {
+            membersText = "?";
+            memberNames = new List<string> { "?" };
+        }
+        else if (members is null)
+        {
+            membersText = "null";
+            memberNames = new List<string>();
+        }
+        else
+        {
+            memberNames = ReadVillagerNames(members, key, out memberCount, out memberCountOk);
+            membersText = memberCountOk ? memberCount.ToString() : "?";
+        }
+
+        int petCount = 0;
+        bool petCountOk = false;
+        string petsText;
+        List<string> petNames;
+        if (!petsOk)
+        {
+            petsText = "?";
+            petNames = new List<string> { "?" };
+        }
+        else if (pets is null)
+        {
+            petsText = "null";
+            petNames = new List<string>();
+        }
+        else
+        {
+            petNames = ReadPetNames(pets, key, out petCount, out petCountOk);
+            petsText = petCountOk ? petCount.ToString() : "?";
+        }
+
+        bool hasMembers = membersOk && memberCountOk && memberCount > 0;
+        bool hasPets = petsOk && petCountOk && petCount > 0;
+        if (hasMembers || hasPets)
+        {
+            // Impede que o primeiro Refresh (com _lastConfig vazio) apague os
+            // nomes que o probe acabou de registrar.
+            try
+            {
+                CompanionRegistry.Refresh();
+            }
+            catch (Exception ex)
+            {
+                WarnOnce(key, "CompanionRegistry.Refresh", ex);
+            }
+
+            if (hasMembers)
+            {
+                foreach (string name in memberNames)
+                    RegisterName(name);
+            }
+
+            if (hasPets)
+            {
+                foreach (string name in petNames)
+                    RegisterName(name);
+            }
+        }
 
         string signature =
-            $"pc={pcName}|authority={authority}|followQuest={followQuest}|" +
-            $"members={memberNames.Count}|names={string.Join(",", memberNames)}|" +
-            $"pets={petNames.Count}|petNames={string.Join(",", petNames)}";
+            $"pc={pcName}|authority={(authorityOk ? authority.ToString() : "?")}|" +
+            $"followQuest={(followOk ? (followQuest is not null).ToString() : "?")}|" +
+            $"members={membersText}|names={string.Join(",", memberNames)}|" +
+            $"pets={petsText}|petNames={string.Join(",", petNames)}";
 
         bool changed;
         lock (Sync)
@@ -234,156 +312,148 @@ internal static class CompanionPartyProbe
                 LastSignature[key] = signature;
         }
 
-        if (force || changed)
-        {
-            AicLog.Flow(
-                "PARTY",
-                $"id={key} {signature}");
-        }
+        if (changed)
+            AicLog.Flow("PARTY", $"id={key} {signature}");
     }
 
-    private static List<string> GetListNames(object? list)
+    private static List<string> ReadVillagerNames(
+        Il2CppSystem.Collections.Generic.List<Villager> list,
+        int key,
+        out int count,
+        out bool countOk)
     {
         var names = new List<string>();
-        int count = GetCount(list);
+        count = 0;
+        countOk = false;
+
+        try
+        {
+            count = list.Count;
+            countOk = true;
+        }
+        catch (Exception ex)
+        {
+            WarnOnce(key, "_partyMembers.Count", ex);
+            return names;
+        }
+
         for (int i = 0; i < count; i++)
         {
-            string? name = GetMemberName(GetItem(list, i));
-            if (!string.IsNullOrWhiteSpace(name))
-                names.Add(name.Trim());
+            Villager? villager = null;
+            try
+            {
+                villager = list[i];
+            }
+            catch (Exception ex)
+            {
+                WarnOnce(key, $"_partyMembers[{i}]", ex);
+                names.Add("?");
+                continue;
+            }
+
+            names.Add(villager is null
+                ? "null"
+                : ReadName(() => villager!.GetName(), key, $"_partyMembers[{i}].GetName"));
         }
 
         return names;
     }
 
-    private static Type? ResolveGameType(string fullName)
+    private static List<string> ReadPetNames(
+        Il2CppSystem.Collections.Generic.List<Pet> list,
+        int key,
+        out int count,
+        out bool countOk)
     {
+        var names = new List<string>();
+        count = 0;
+        countOk = false;
+
         try
         {
-            Type? direct = Type.GetType($"{fullName}, Assembly-CSharp", throwOnError: false);
-            if (direct is not null)
-                return direct;
+            count = list.Count;
+            countOk = true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // segue para a varredura pontual
+            WarnOnce(key, "_partyPets.Count", ex);
+            return names;
         }
 
-        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+        for (int i = 0; i < count; i++)
         {
-            if (assembly.IsDynamic)
-                continue;
-
+            Pet? pet = null;
             try
             {
-                Type? type = assembly.GetType(fullName, throwOnError: false);
-                if (type is not null)
-                    return type;
+                pet = list[i];
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // stubs do Unity com tipos inválidos
+                WarnOnce(key, $"_partyPets[{i}]", ex);
+                names.Add("?");
+                continue;
             }
+
+            names.Add(pet is null
+                ? "null"
+                : ReadName(() => pet!.GetName(), key, $"_partyPets[{i}].GetName"));
         }
 
-        return null;
+        return names;
     }
 
-    private static MethodInfo? ResolveMethod(Type type, string methodName)
+    private static string ReadName(Func<string?> getName, int key, string label)
     {
         try
         {
-            MethodInfo? method = AccessTools.Method(type, methodName);
-            if (method is not null)
-                return method;
+            string? name = getName();
+            if (string.IsNullOrWhiteSpace(name))
+                return "?";
+
+            return Sanitize(name!);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // ambíguo; cai para a varredura
-        }
-
-        return type.GetMethod(
-            methodName,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-    }
-
-    private static object? GetField(object instance, string name) =>
-        instance.GetType()
-            .GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-            ?.GetValue(instance);
-
-    private static bool ReadBool(object instance, string name)
-    {
-        object? value = GetField(instance, name);
-        return value is bool flag && flag;
-    }
-
-    private static int GetCount(object? list)
-    {
-        if (list is null)
-            return 0;
-
-        try
-        {
-            object? count = list.GetType().GetProperty("Count")?.GetValue(list);
-            if (count is int value)
-                return value;
-
-            object? viaMethod = list.GetType().GetMethod("get_Count")?.Invoke(list, null);
-            return viaMethod is int methodValue ? methodValue : 0;
-        }
-        catch (Exception)
-        {
-            return 0;
+            WarnOnce(key, label, ex);
+            return "?";
         }
     }
 
-    private static object? GetItem(object? list, int index)
+    private static void RegisterName(string? name)
     {
-        if (list is null)
-            return null;
+        if (string.IsNullOrWhiteSpace(name))
+            return;
 
-        try
-        {
-            PropertyInfo? item = list.GetType().GetProperty("Item");
-            if (item is not null)
-                return item.GetValue(list, new object[] { index });
+        if (name == "?" || string.Equals(name, "null", StringComparison.OrdinalIgnoreCase))
+            return;
 
-            MethodInfo? getItem = list.GetType().GetMethod("get_Item", new[] { typeof(int) });
-            return getItem?.Invoke(list, new object[] { index });
-        }
-        catch (Exception)
-        {
-            return null;
-        }
+        CompanionRegistry.Register(name);
     }
 
-    private static string? GetMemberName(object? member)
+    private static string Sanitize(string value)
     {
-        if (member is null)
-            return null;
+        string flat = value
+            .Replace('\r', ' ')
+            .Replace('\n', ' ')
+            .Replace('\t', ' ')
+            .Replace('|', '/')
+            .Trim();
 
-        try
+        return flat.Length == 0 ? "?" : flat;
+    }
+
+    private static void WarnOnce(int key, string member, Exception ex)
+    {
+        string warningKey = $"{key}:{member}";
+        bool first;
+        lock (Sync)
+            first = Warned.Add(warningKey);
+
+        if (first)
         {
-            MethodInfo? getName = member.GetType().GetMethod(
-                "GetName",
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
-                binder: null,
-                types: Type.EmptyTypes,
-                modifiers: null);
-
-            if (getName?.Invoke(member, null) is string name && !string.IsNullOrWhiteSpace(name))
-                return name;
-
-            object? fallback = member.GetType()
-                .GetProperty("name", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                ?.GetValue(member);
-
-            return fallback as string;
-        }
-        catch (Exception)
-        {
-            return null;
+            AicLog.Warn(
+                $"[PARTY] read {member} failed for id={key}: " +
+                $"{ex.GetType().Name}: {ex.Message}");
         }
     }
 }

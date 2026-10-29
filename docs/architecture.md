@@ -72,7 +72,7 @@ Regras:
 | `Chat/ChatMenuCapture.cs` | Guarda a instância do `ChatMenu` capturada no prefix (`__instance`) | implementado |
 | `Chat/CompanionChatReply.cs` | Resposta local no chat via `ChatMenu._AddNewTextLine` (reflexão) | implementado |
 | `Companion/CompanionPartyProbe.cs` | Lê `PlayerParty._partyMembers/_partyPets/_pc` (polling 1 Hz), registra nomes | implementado (`feat/recruit-follow`) |
-| `Companion/PlayerHousePartyUnlock.cs` | `DebugUnlockParty`: força `PlayerHouse.allowPartyManagement=true` (dev) | implementado (`feat/recruit-follow`) |
+| `Companion/PlayerHousePartyUnlock.cs` | `DebugUnlockParty`: poll de main thread (sem Harmony) força `PlayerHouse.allowPartyManagement=true` após o load | implementado, escrita em jogo pendente |
 | `Voice/VoiceInput.cs` | Microfone 16 kHz mono, trim, WAV em memória | planejado |
 | `Voice/WhisperStt.cs` | Transcrição in-process, fila, modelo único | planejado |
 | `AI/CompanionBrain.cs` | Fila + uma requisição por vez + drain das respostas | implementado |
