@@ -61,6 +61,22 @@ também responde; mensagem sem nome/prefixo continua ignorada. A linha visual é
 `[AIC][REPLY] Thorin: Bom dia! ...` e a linha apareceu no chat; `Thorin, vem comigo` devolveu
 `action=come`. Evidência: [`docs/re/chat-reply-verification.md`](re/chat-reply-verification.md).
 
+## M1.6 — Party e ordens (branch `feat/recruit-follow`)
+
+- [x] Localizar o gate nativo da party: `SSSGame.PlayerHouse.allowPartyManagement`; a Cabana
+  do Chefe nível 2 liga esse bool.
+- [x] `General/DebugUnlockParty` (dev, default false): força o bool `true` em toda
+  `PlayerHouse`; log confirma `False -> true`.
+- [x] Probe `PlayerParty`: lê `_partyMembers`/`_partyPets`/`_pc` com polling e registra os
+  nomes no `CompanionRegistry`.
+- [ ] Criar a party com Thorin/Maria na UI nativa (com o unlock ligado).
+- [ ] Executar `follow`/`stop`/`come` no villager nomeado.
+- [ ] Feedback no chat/balão para ordem executada ou recusada.
+
+**Aceite:** com a party criada, `Thorin, segue` mantém o villager seguindo; `Thorin, para`
+interrompe; `Thorin, vem` aproxima; `Maria, ...` vai para a Maria; o log mostra o alvo e o
+resultado, sem crash.
+
 ## M2 — Conversa, persona e memória
 
 **Branch:** `feat/persona-memory`.

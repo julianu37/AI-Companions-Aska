@@ -16,6 +16,7 @@ internal static class ModConfig
     internal static ConfigEntry<bool> StructuredOutput = null!;
     internal static ConfigEntry<int> MaxTokens = null!;
     internal static ConfigEntry<bool> SelfTest = null!;
+    internal static ConfigEntry<bool> DebugUnlockParty = null!;
     internal static ConfigEntry<string> BaseUrl = null!;
     internal static ConfigEntry<string> Model = null!;
     internal static ConfigEntry<string> ApiKey = null!;
@@ -70,6 +71,10 @@ internal static class ModConfig
         SelfTest = config.Bind(
             "AI", "SelfTest", false,
             "Diagnostic: runs a one-shot LLM self-test on boot and logs the parsed intent. Leave false.");
+
+        DebugUnlockParty = config.Bind(
+            "General", "DebugUnlockParty", false,
+            "DANGER: forces PlayerHouse.allowPartyManagement=true on every player house, unlocking party management without the level 2 Chief's Hut. Development only.");
 
         BaseUrl = config.Bind(
             "AI", "BaseUrl", "http://127.0.0.1:1234/v1",

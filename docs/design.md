@@ -27,6 +27,15 @@ decisão mudar, reescreva o fato aqui (não acumule “antes era X”).
   frágil; fica para depois, se o recrutamento não der conta.
 - **NPC customizado do zero:** rejeitado para o escopo atual.
 
+**Gate nativo da party (descoberto em 2026-10-29):** a criação/gestão da party é liberada
+por `SSSGame.PlayerHouse.allowPartyManagement`, um bool do componente da casa do jogador. A
+Cabana do Chefe nível 2 (“Cabana do Chefe Orgulhoso”) é o prédio que o liga; no nível 1 ele
+vem `false`. Para desenvolver/testar sem esperar o late game, a branch
+`feat/recruit-follow` adicionou `General/DebugUnlockParty` (default **false**): com `true`,
+um postfix em `PlayerHouse.Initialize`/`_OnActivate` força o bool para `true` em toda
+`PlayerHouse`. É opt-in de desenvolvimento; não muda nível, receita, custo nem save. A party
+em si continua sendo criada pela UI nativa (o mod não inventa membros).
+
 **Em aberto:** como o jogador recruta (interação “Recrutar” no villager? painel? comando?),
 limite de companheiros, e o que acontece se o villager morrer.
 

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using AICompanionsAska.AI;
 using AICompanionsAska.Chat;
+using AICompanionsAska.Companion;
 using AICompanionsAska.Core;
 using AICompanionsAska.Diagnostics;
 using AICompanionsAska.Patches;
@@ -43,6 +44,13 @@ public sealed class Plugin : BasePlugin
         // ChatPatch registra o próprio sucesso/falha; isto não lança.
         ChatPatch.Apply();
 
+        // Read-only: registra os nomes da PlayerParty (Thorin, Maria, ...) no
+        // CompanionRegistry. Ainda não move ninguém.
+        CompanionPartyProbe.Apply();
+
+        // Opt-in de desenvolvimento: libera a party sem a Cabana do Chefe lvl 2.
+        PlayerHousePartyUnlock.Apply();
+
         // A ponte com o Update do Unity é necessária para drenar o LLM na main
         // thread. Se o ClassInjector falhar, o chat continua; o LLM fica off.
         try
@@ -71,6 +79,7 @@ public sealed class Plugin : BasePlugin
             $"CompanionNames=\"{ModConfig.CompanionNames.Value}\" | ReplyInChat={ModConfig.ReplyInChat.Value} | " +
             $"AI.Enabled={ModConfig.AiEnabled.Value} | model={ModConfig.Model.Value} | " +
             $"url={ModConfig.BaseUrl.Value} | structured={ModConfig.StructuredOutput.Value} | " +
+            $"debugUnlockParty={ModConfig.DebugUnlockParty.Value} | " +
             $"brain runner={(_brainReady ? "ok" : "failed")}.");
         LogSource.LogInfo($"[AIC] {PluginInfo.Name} loaded successfully.");
     }
@@ -88,6 +97,8 @@ public sealed class Plugin : BasePlugin
             _brainObject = null;
         }
 
+        CompanionPartyProbe.Unapply();
+        PlayerHousePartyUnlock.Unapply();
         ChatPatch.Unapply();
         ChatCapture.Clear();
 

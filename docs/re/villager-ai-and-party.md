@@ -153,7 +153,28 @@ deve observar os dois.
 **Critério de aceite:** um villager segue o jogador em single-player, para quando ordenado, e
 o save/reload mantém o vínculo (ou o recrutamento é refeito de forma limpa).
 
-## 7. Perguntas abertas
+## 7. Gate da party (2026-10-29)
+
+A criação/gestão da party é liberada por **`SSSGame.PlayerHouse.allowPartyManagement`**
+(bool público no interop). A Cabana do Chefe nível 2 (“Cabana do Chefe Orgulhoso”) é o prédio
+que liga o bool; no nível 1 ele vem `false`.
+
+Para desenvolvimento, `General/DebugUnlockParty=true` aplica um postfix em
+`PlayerHouse.Initialize`/`_OnActivate` e força o bool para `true` em toda `PlayerHouse`. O log
+confirmou:
+
+```text
+[AIC][PARTY] DebugUnlockParty applied: SSSGame.PlayerHouse.Initialize, SSSGame.PlayerHouse._OnActivate
+[AIC][PARTY] PlayerHouse allowPartyManagement: False -> true (debug unlock, ...)
+```
+
+A party em si continua sendo criada pela UI nativa; o mod não inventa membros. O probe
+`CompanionPartyProbe` lê `_partyMembers`/`_partyPets`/`_pc` com polling de 1 Hz; antes da
+criação da party ele mostra `members=0 authority=False pc=?` (a party é um componente de cena
+sem membros). Depois que a party for criada, os nomes (Thorin, Maria, ...) devem aparecer e
+ser registrados no `CompanionRegistry`.
+
+## 8. Perguntas abertas
 
 - `SetTaskAgent` adiciona à party ou só atribui trabalho?
 - A party tem limite? (`GetAgentsCapacity`?)

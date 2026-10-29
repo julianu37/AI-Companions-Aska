@@ -1,3 +1,4 @@
+using AICompanionsAska.Companion;
 using UnityEngine;
 
 namespace AICompanionsAska.AI;
@@ -13,6 +14,7 @@ public sealed class CompanionBrainRunner : MonoBehaviour
 
     private void Update()
     {
+        CompanionPartyProbe.Tick();
         CompanionBrain.Drain();
 
         if (Time.unscaledTime < _nextPump)

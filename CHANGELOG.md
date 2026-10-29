@@ -3,6 +3,22 @@
 Todas as mudanças relevantes do projeto. Formato baseado em Keep a Changelog;
 versionamento semântico (`MAJOR.MINOR.PATCH`).
 
+## [0.5.0] — em andamento (`feat/recruit-follow`)
+
+### Adicionado
+
+- **Gate da party descoberto:** `SSSGame.PlayerHouse.allowPartyManagement`; a Cabana do Chefe
+  nível 2 liga o bool. `General/DebugUnlockParty` (dev, default false) força `true` em toda
+  `PlayerHouse` via postfix em `Initialize`/`_OnActivate`.
+- **Probe `PlayerParty`:** lê `_partyMembers`/`_partyPets`/`_pc` com polling de 1 Hz e
+  registra os nomes no `CompanionRegistry` (Thorin, Maria, ...).
+
+### Pendente
+
+- Criar a party com Thorin/Maria na UI nativa (com o unlock ligado).
+- Executar `follow`/`stop`/`come` no villager nomeado.
+- Feedback no chat/balão.
+
 ## [0.4.0] — 2026-10-28
 
 ### Adicionado

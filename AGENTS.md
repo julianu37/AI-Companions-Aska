@@ -269,8 +269,11 @@ técnicos.
   com identidade e resposta no chat via `ChatMenu._AddNewTextLine`. **Confirmado em jogo em
   2026-10-29** (`Thorin, bom dia` -> linha `Thorin: ...`; `Thorin, vem comigo` -> `action=come`).
   Harness 41/41. Evidência: `docs/re/chat-reply-verification.md`.
+- `v0.5.0` (**branch `feat/recruit-follow`**, em andamento) — gate da party descoberto:
+  `PlayerHouse.allowPartyManagement` (Cabana do Chefe lvl 2). `General/DebugUnlockParty`
+  força o bool para desenvolvimento; probe `PlayerParty` lê membros/pets/nomes com polling.
+  **Ainda não executa ordens**; a party precisa ser criada na UI nativa.
 - **Branches:**
-  - `feat/recruit-follow` — registrar nomes da `PlayerParty` + executar `follow`/`stop`/`come`
-    (próxima).
+  - `feat/recruit-follow` — unlock/probe da party + ordens `follow`/`stop`/`come` (em andamento).
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

@@ -71,6 +71,8 @@ Regras:
 | `Chat/ChatCapture.cs` | Porta única da mensagem endereçada: log, dedupe, evento `Captured` | implementado |
 | `Chat/ChatMenuCapture.cs` | Guarda a instância do `ChatMenu` capturada no prefix (`__instance`) | implementado |
 | `Chat/CompanionChatReply.cs` | Resposta local no chat via `ChatMenu._AddNewTextLine` (reflexão) | implementado |
+| `Companion/CompanionPartyProbe.cs` | Lê `PlayerParty._partyMembers/_partyPets/_pc` (polling 1 Hz), registra nomes | implementado (`feat/recruit-follow`) |
+| `Companion/PlayerHousePartyUnlock.cs` | `DebugUnlockParty`: força `PlayerHouse.allowPartyManagement=true` (dev) | implementado (`feat/recruit-follow`) |
 | `Voice/VoiceInput.cs` | Microfone 16 kHz mono, trim, WAV em memória | planejado |
 | `Voice/WhisperStt.cs` | Transcrição in-process, fila, modelo único | planejado |
 | `AI/CompanionBrain.cs` | Fila + uma requisição por vez + drain das respostas | implementado |
@@ -205,7 +207,7 @@ Seções iniciais:
 
 | Seção | Chaves |
 |---|---|
-| `General` | `Enabled`, `VerboseLog`, `Language` |
+| `General` | `Enabled`, `VerboseLog`, `Language`, `DebugUnlockParty` |
 | `AI` | `Enabled`, `StructuredOutput`, `MaxTokens`, `SelfTest`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`, `TimeoutSeconds`, `ChatPrefix`, `AddressByName`, `CompanionNames`, `ReplyInChat`, `Memory`, `Personality` |
 | `Voice` | `Enabled`, `PushToTalkKey`, `SttModel`, `TtsModel`, `TtsVoice`, `TtsVolume`, `TtsSpeed` |
 | `UI` | `PanelKey`, `ShowHud` |
