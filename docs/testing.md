@@ -115,7 +115,7 @@ coreclr.dll+0x1d1fdd ...       crash nativo (WER)
 
 ```md
 ## Versão
-- Mod: 0.1.0
+- Mod: 0.2.0
 - ASKA build: 25834809 (Unity 6000.3.12f1)
 - BepInEx: 6.0.0-be.791
 

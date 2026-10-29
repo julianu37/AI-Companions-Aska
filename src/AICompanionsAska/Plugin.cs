@@ -1,6 +1,8 @@
 using System.IO;
+using AICompanionsAska.Chat;
 using AICompanionsAska.Core;
 using AICompanionsAska.Diagnostics;
+using AICompanionsAska.Patches;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
@@ -8,9 +10,9 @@ using BepInEx.Unity.IL2CPP;
 namespace AICompanionsAska;
 
 /// <summary>
-/// Entrada do plugin. Nesta versão (0.1.0) o objetivo é apenas carregar,
-/// registrar o ambiente e provar que o toolchain BepInEx 6 IL2CPP + net6.0
-/// está correto.
+/// Entrada do plugin. Em 0.1.x ele carrega, registra o ambiente e — desde a
+/// branch <c>feat/chat-hook</c> — captura a mensagem endereçada do chat
+/// (<c>ChatMenu.SendPlayerMessage</c>). Ainda não há LLM, resposta nem voz.
 /// </summary>
 [BepInPlugin(PluginInfo.Guid, PluginInfo.Name, PluginInfo.Version)]
 public sealed class Plugin : BasePlugin
@@ -30,13 +32,24 @@ public sealed class Plugin : BasePlugin
         ModConfig.Bind(Config);
         EnvironmentReport.Log();
 
-        LogSource.LogInfo($"[AIC] Enabled={ModConfig.Enabled.Value} (reserved; no gameplay in 0.1.0).");
+        // Patch mínimo, aplicado por nome dentro de try/catch (sem PatchAll).
+        // ChatPatch registra o próprio sucesso/falha; isto não lança.
+        ChatPatch.Apply();
+
+        LogSource.LogInfo(
+            $"[AIC] Enabled={ModConfig.Enabled.Value} | chat hook active (no LLM/voice yet) | " +
+            $"ChatPrefix=\"{ChatAddressing.GetPrefix()}\" | AddressByName={ModConfig.AddressByName.Value} (reserved, not applied) | " +
+            $"hook applied={ChatPatch.Applied}.");
         LogSource.LogInfo($"[AIC] {PluginInfo.Name} loaded successfully.");
     }
 
     public override bool Unload()
     {
         LogSource.LogInfo($"[AIC] {PluginInfo.Name} unloading.");
+
+        ChatPatch.Unapply();
+        ChatCapture.Clear();
+
         return true;
     }
 }

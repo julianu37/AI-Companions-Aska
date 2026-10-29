@@ -3,6 +3,26 @@
 Todas as mudanças relevantes do projeto. Formato baseado em Keep a Changelog;
 versionamento semântico (`MAJOR.MINOR.PATCH`).
 
+## [0.2.0] — 2026-10-28
+
+### Adicionado
+
+- **Captura do chat do jogador** via Harmony em
+  `SSSGame.UI.ChatMenu.SendPlayerMessage(string)`, com prefixo configurável (`AI.ChatPrefix`,
+  default `/c`), ignorando mensagens não endereçadas.
+- `Chat/ChatCommand`, `Chat/ChatAddressing`, `Chat/ChatCapture` e `Patches/ChatPatch` (patch
+  manual por alvo, sem `PatchAll`; `Apply`/`Unapply` idempotentes).
+- Fire-verify no log: `[AIC][PATCH] applied chat hook ...` e `... fired (first call ...)`.
+
+### Notas
+
+- **Aplicação e disparo confirmados em jogo em 2026-10-28:** `_OnTextInputSubmit` capturou
+  `/c teste`; `SendInGameChatMessage` também disparou e o dedupe descartou a segunda captura;
+  sem prefixo foi ignorado. Evidência: `docs/re/chat-hook-verification.md`.
+- `AI.AddressByName` continua reservado (sem lista de companheiros); só o prefixo captura.
+- A mensagem original **não** é suprimida do chat do jogo.
+- LLM, resposta, voz e UI ainda não existem.
+
 ## [0.1.0] — 2026-10-28
 
 ### Adicionado

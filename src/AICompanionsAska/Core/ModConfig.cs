@@ -38,11 +38,11 @@ internal static class ModConfig
         // General
         Enabled = config.Bind(
             "General", "Enabled", true,
-            "Turns the mod on/off. Reserved: there is no gameplay in 0.1.0.");
+            "Turns the mod on/off. In 0.1.x it gates the chat capture hook (no LLM/voice yet).");
 
         VerboseLog = config.Bind(
             "General", "VerboseLog", true,
-            "Verbose logging (prompt/JSON/intents). Turn it off before a release.");
+            "Verbose logging (ignored chat messages, prompt/JSON/intents). Turn it off before a release.");
 
         Language = config.Bind(
             "General", "Language", "auto",
@@ -71,11 +71,15 @@ internal static class ModConfig
 
         ChatPrefix = config.Bind(
             "AI", "ChatPrefix", "/c",
-            "Prefix that addresses a chat message to the companion. Empty = disabled.");
+            "Prefix that addresses a chat message to the companion, e.g. \"/c follow me\". " +
+            "Case-insensitive, trimmed, and must be followed by a space or the end of the message. " +
+            "Empty = chat hook disabled.");
 
         AddressByName = config.Bind(
-            "AI", "AddressByName", true,
-            "Also accept messages that start with the companion name.");
+            "AI", "AddressByName", false,
+            "Also accept messages that start with the companion name. " +
+            "Reserved for a later phase: NOT implemented yet (only the prefix is captured). " +
+            "Default false; enabling it now has no effect.");
 
         Memory = config.Bind(
             "AI", "Memory", 4,

@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Status:** `v0.1.0` — **scaffold**. O plugin BepInEx compila, é deployado e **carrega em jogo**
-(log confirmado em 2026-10-28). As ordens, o chat, o LLM e a voz entram nas próximas branches.
-Nada de gameplay ainda.
+**Status:** `v0.2.0` — **chat hook**. O plugin captura mensagens endereçadas no chat
+(`/c ...`) e loga o texto; **confirmado em jogo em 2026-10-28**. LLM, ordens, voz e UI ainda
+não existem.
 
 ---
 
@@ -48,7 +48,8 @@ Nada de gameplay ainda.
 2. Copie o conteúdo do release (ou a pasta `AI-Companions-Aska` do build local) para:
    `...\ASKA\BepInEx\plugins\AI-Companions-Aska\`.
 3. Abra o jogo **pelo Steam** e confira `BepInEx\LogOutput.log`:
-   deve aparecer `AI Companions - ASKA 0.1.0` e `loaded successfully`.
+   deve aparecer a versão que você compilou/baixou (neste branch, `AI Companions - ASKA 0.2.0`)
+   e `loaded successfully`.
 4. (Quando o LLM entrar) abra o LM Studio, carregue o `qwen2.5-3b-instruct` e inicie o
    **Local Server** em `127.0.0.1:1234`.
 
@@ -74,7 +75,7 @@ O `Environment.props` é **local** e não vai para o repositório. O build refer
 | `V` (segurar) | Push-to-talk (configurável) |
 | `I` | Painel da IA (configurável) — a partir da fase de UI |
 
-> As teclas e o prefixo ainda não estão ativos no `v0.1.0`; a tabela é o contrato da fase 1.
+> O prefixo `/c` está ativo desde a `0.2.0` (captura no log); as teclas de voz/painel ainda não.
 > O BepInEx Configuration Manager (se instalado) usa a tecla dele; não é uma tecla do mod.
 
 ## Arquitetura (resumo)
@@ -154,8 +155,8 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > (LM Studio + Qwen2.5-3B-Instruct) and **local speech** (Whisper + Kokoro). Built on ASKA's
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
-**Status:** `v0.1.0` — **scaffold**. The BepInEx plugin builds, deploys and **loads in game**
-(log confirmed on 2026-10-28). Chat, orders, LLM and voice arrive in later branches. No gameplay
+**Status:** `v0.2.0` — **chat hook**. The plugin captures addressed chat messages (`/c ...`)
+and logs the text; **confirmed in game on 2026-10-28**. LLM, orders, voice and UI do not exist
 yet.
 
 ### Requirements
