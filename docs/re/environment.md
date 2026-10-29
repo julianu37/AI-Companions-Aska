@@ -57,10 +57,12 @@ $br.Close(); $fs.Close()
 | Unity libs | `...\BepInEx\unity-libs` |
 | Plugins | `...\BepInEx\plugins` |
 | Log | `...\BepInEx\LogOutput.log` |
+| Log do Unity/jogo | `%USERPROFILE%\AppData\LocalLow\Sand Sailor Studio\Aska\Player.log` |
 | Config | `...\BepInEx\config` |
 
 O BepInEx foi instalado pelo **Vortex**; existe um `vortex.deployment.aska-bepinex-new.json` na
-raiz do jogo. O `LogOutput.log` atual mostra **0 plugins** (antes do nosso).
+raiz do jogo. O log de **2026-10-28** confirma **1 plugin** (`AI Companions - ASKA 0.1.0`);
+antes do nosso, o mesmo log mostrava 0 plugins.
 
 ## 3. Formato das interop assemblies
 
