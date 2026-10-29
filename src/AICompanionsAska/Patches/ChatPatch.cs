@@ -45,8 +45,16 @@ internal static class ChatPatch
         (ChatSessionTypeName, "SendInGameChatMessage"),
     };
 
+    // Só guarda a instância, sem processar texto. OnSetup costuma rodar quando
+    // a UI do chat é montada; é o capture mais cedo possível.
+    private static readonly (string TypeName, string MethodName)[] CaptureTargets =
+    {
+        (ChatMenuTypeName, "OnSetup"),
+    };
+
     private static readonly object FiredLock = new();
     private static readonly HashSet<string> FiredTargets = new(StringComparer.Ordinal);
+    private static bool _menuCapturedLogged;
 
     private static Harmony? _harmony;
 
@@ -74,9 +82,13 @@ internal static class ChatPatch
                 BindingFlags.Static | BindingFlags.NonPublic);
             if (prefix is null)
             {
-                AicLog.Error("[PATCH] internal error: ChatPatch.Prefix(string, MethodBase) not found. Chat hook disabled.");
+                AicLog.Error("[PATCH] internal error: ChatPatch.Prefix(object, string, MethodBase) not found. Chat hook disabled.");
                 return;
             }
+
+            MethodInfo? capturePrefix = typeof(ChatPatch).GetMethod(
+                nameof(CapturePrefix),
+                BindingFlags.Static | BindingFlags.NonPublic);
 
             harmony = new Harmony(HarmonyId);
             var applied = new List<string>();
@@ -109,6 +121,36 @@ internal static class ChatPatch
                 }
             }
 
+            if (capturePrefix is not null)
+            {
+                foreach ((string typeName, string methodName) in CaptureTargets)
+                {
+                    Type? type = ResolveGameType(typeName);
+                    if (type is null)
+                    {
+                        missing.Add($"{typeName} (type)");
+                        continue;
+                    }
+
+                    MethodInfo? target = ResolveMethodAny(type, methodName);
+                    if (target is null)
+                    {
+                        missing.Add($"{typeName}.{methodName}");
+                        continue;
+                    }
+
+                    try
+                    {
+                        harmony.Patch(target, prefix: new HarmonyMethod(capturePrefix));
+                        applied.Add(DescribeSignature(target));
+                    }
+                    catch (Exception ex)
+                    {
+                        missing.Add($"{typeName}.{methodName} ({ex.GetType().Name}: {ex.Message})");
+                    }
+                }
+            }
+
             if (applied.Count == 0)
             {
                 AicLog.Error($"[PATCH] no chat target could be patched. Missing: {string.Join("; ", missing)}. Chat hook disabled.");
@@ -117,6 +159,7 @@ internal static class ChatPatch
 
             _harmony = harmony;
             Applied = true;
+            _menuCapturedLogged = false;
             lock (FiredLock)
                 FiredTargets.Clear();
 
@@ -162,6 +205,8 @@ internal static class ChatPatch
         if (harmony is null)
         {
             Applied = false;
+            ChatMenuCapture.Clear();
+            CompanionChatReply.Reset();
             AicLog.Debug("[PATCH] chat hook was not applied; nothing to remove.");
             return;
         }
@@ -179,6 +224,9 @@ internal static class ChatPatch
         {
             _harmony = null;
             Applied = false;
+            _menuCapturedLogged = false;
+            ChatMenuCapture.Clear();
+            CompanionChatReply.Reset();
         }
     }
 
@@ -189,11 +237,19 @@ internal static class ChatPatch
     /// deduplicada por <see cref="ChatCapture"/> quando mais de um alvo dispara
     /// para o mesmo submit.
     /// </summary>
-    private static void Prefix(string __0, MethodBase __originalMethod)
+    private static void Prefix(object __instance, string __0, MethodBase __originalMethod)
     {
         try
         {
             string target = Describe(__originalMethod);
+
+            // Guarda a instância viva do ChatMenu para o companheiro responder
+            // no chat. Só os alvos declarados em ChatMenu têm essa instância.
+            if (__instance is not null &&
+                string.Equals(__originalMethod?.DeclaringType?.FullName, ChatMenuTypeName, StringComparison.Ordinal))
+            {
+                CapturePrefix(__instance);
+            }
 
             // Fire-verify antes do gate: se o jogador desligou o mod no .cfg,
             // ainda queremos saber que o Harmony chegou ao método (e não que o
@@ -222,6 +278,20 @@ internal static class ChatPatch
     }
 
     private static bool IsEnabled() => ModConfig.Enabled is { Value: true };
+
+    /// <summary>Prefix mínimo para guardar a instância do ChatMenu (sem ler texto).</summary>
+    private static void CapturePrefix(object __instance)
+    {
+        if (__instance is null)
+            return;
+
+        ChatMenuCapture.Set(__instance);
+        if (!_menuCapturedLogged)
+        {
+            _menuCapturedLogged = true;
+            AicLog.Flow("CHAT", "ChatMenu instance captured (reply target ready).");
+        }
+    }
 
     /// <summary>Assinatura resolvida, para o log de apply não mentir sobre o alvo.</summary>
     private static string DescribeSignature(MethodInfo method)
@@ -283,6 +353,29 @@ internal static class ChatPatch
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Resolve um método por nome sem exigir assinatura (usado no <c>OnSetup</c>,
+    /// que recebe <c>MenuParameters</c>). Evita <c>typeof</c> de tipo do jogo.
+    /// </summary>
+    private static MethodInfo? ResolveMethodAny(Type type, string methodName)
+    {
+        try
+        {
+            MethodInfo? method = AccessTools.Method(type, methodName);
+            if (method is not null)
+                return method;
+        }
+        catch (Exception)
+        {
+            // ambíguo; cai para a varredura
+        }
+
+        return type.GetMethods(
+                BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .FirstOrDefault(m => string.Equals(m.Name, methodName, StringComparison.Ordinal));
     }
 
     /// <summary>

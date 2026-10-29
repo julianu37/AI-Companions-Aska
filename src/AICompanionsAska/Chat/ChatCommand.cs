@@ -24,13 +24,15 @@ internal enum ChatSource
 /// </summary>
 internal readonly struct ChatCommand
 {
-    internal ChatCommand(string raw, string text, bool addressed, ChatSource source, DateTime timestampUtc)
+    internal ChatCommand(string raw, string text, bool addressed, ChatSource source,
+        DateTime timestampUtc, string companionName)
     {
         Raw = raw;
         Text = text;
         Addressed = addressed;
         Source = source;
         TimestampUtc = timestampUtc;
+        CompanionName = companionName;
     }
 
     /// <summary>Texto como o jogo entregou (pode conter o prefixo).</summary>
@@ -48,9 +50,12 @@ internal readonly struct ChatCommand
     /// <summary>Momento da captura, em UTC (nunca local, para não depender do fuso).</summary>
     internal DateTime TimestampUtc { get; }
 
-    /// <summary>Fábrica usada pelo endereçamento por prefixo do chat.</summary>
-    internal static ChatCommand FromChat(string raw, string text) =>
-        new(raw, text, addressed: true, ChatSource.Chat, DateTime.UtcNow);
+    /// <summary>Companheiro a quem a mensagem foi endereçada (nome da config/registro).</summary>
+    internal string CompanionName { get; }
+
+    /// <summary>Fábrica usada pelo endereçamento por prefixo ou por nome.</summary>
+    internal static ChatCommand FromChat(string raw, string text, string companionName) =>
+        new(raw, text, addressed: true, ChatSource.Chat, DateTime.UtcNow, companionName);
 
     /// <summary>
     /// Resumo seguro para log: **não** inclui o texto (pode conter quebras de

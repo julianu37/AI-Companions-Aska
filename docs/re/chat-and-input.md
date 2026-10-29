@@ -64,10 +64,12 @@ Harmony Prefix em [ChatPatch]:
   ChatMenu._OnTextInputSubmit(string)          ← submit do campo (provável Enter)
   ChatMenu.SendPlayerMessage(string)           ← wrapper público (mantido)
   NetworkChatSession.SendInGameChatMessage(string) ← envio final (fallback)
+    → se o alvo for ChatMenu: ChatMenuCapture.Set(__instance)
     → fire-verify por alvo (antes do gate Enabled)
     → ModConfig.Enabled?            false → return (jogo segue normal)
     → ChatAddressing.TryParse(__0)  false → [AIC][CHAT] ignored (N chars) se VerboseLog
-    → ChatCapture.Submit(cmd, src)  true  → [AIC][CHAT] addressed from <alvo> (N chars): "texto"
+    → ChatCapture.Submit(cmd, src)  true  → [AIC][CHAT] addressed to <nome> from <alvo> ...
+    → CompanionBrain -> LlmClient -> Drain -> CompanionChatReply.Say(nome, reply)
     → (a mensagem original segue para o chat do jogo: prefix retorna void)
 ```
 
@@ -81,13 +83,19 @@ podem disparar para um único submit. O log diz qual alvo capturou.
   (`__runOriginal = false`) fica para uma fase posterior, se o ruído incomodar.
 - **`_ReceivePlayerMessage` não é patchado** — é o recebimento (outros jogadores).
 - Prefixo `AI.ChatPrefix`: trimado, `OrdinalIgnoreCase`, e precisa ser seguido de espaço ou
-  terminar a mensagem (`/casa` não é comando). **Prefixo vazio = captura desligada.**
-- `AI.AddressByName` **não** é usado ainda: não existe lista de companheiros recrutados para
-  desambiguar, e capturar por nome sem isso sequestraria mensagens de outros jogadores.
-  TODO registrado em `ChatAddressing.TryParse`.
+  terminar a mensagem (`/casa` não é comando). **Prefixo vazio = captura por prefixo
+  desligada.** O destino é o primeiro nome de `AI.CompanionNames`.
+- `AI.AddressByName` (default **true**) aceita o nome do companheiro no início
+  (`Thorin, ...`, `Thorin: ...`, `Thorin ...`). O nome tem que ser **completo** e existir em
+  `AI.CompanionNames`; `NameAddressing` prefere o nome mais longo. Sem lista, nada é capturado.
 - Texto ignorado **não** é logado (apenas o comprimento), para não vazar conversa alheia.
-- `ChatCapture` guarda `Last` (`TryGetLast`) para a fase `feat/llm-intent`; `Plugin.Unload()`
+- `ChatCapture` guarda `Last` (`TryGetLast`), dispara `Captured` e deduplica; `Plugin.Unload()`
   chama `ChatPatch.Unapply()` + `ChatCapture.Clear()`.
+- **Resposta:** `ChatMenuCapture` guarda a instância do `ChatMenu` no prefix; o
+  `CompanionChatReply` chama `_AddNewTextLine(nome, reply, cor, true, false)` por reflexão.
+  É uma linha local (single-player); co-op fica para a fase de rede.
+- **Sem busca de cena:** `FindObjectsByType(Type, ...)` aborta o load do plugin (dead-end #19);
+  a instância vem só do prefix.
 - Sem `Harmony.PatchAll()`/atributos: cada tipo é resolvido por
   `Type.GetType("<tipo>, Assembly-CSharp")` + varredura pontual de `Assembly.GetType` (evita o
   `AllTypes()` do `AccessTools.TypeByName`), método por `AccessTools.Method(..., new[] {
@@ -174,27 +182,31 @@ aplicação e disparo) foi confirmado no log acima.
 
 ### Roteiro de teste
 
-1. Subir o jogo e conferir no `BepInEx\LogOutput.log` a versão `0.2.0` e as linhas:
-   - `[AIC] Enabled=True | chat hook active (no LLM/voice yet) | ChatPrefix="/c" | AddressByName=False (reserved, not applied) | hook applied=True.`
+1. Subir o jogo e conferir no `BepInEx\LogOutput.log` a versão `0.4.0` e as linhas:
+   - `[AIC] ... ChatPrefix="/c" | AddressByName=True | CompanionNames="Thorin" | ReplyInChat=True | ...`
    - `[AIC][PATCH] applied chat hook(s): ... | harmony-registered=True | prefix="/c" | enabled=True`
    - `[AIC][PATCH] harmony-registered=True is NOT proof of firing; wait for a '... fired' line after a real chat submit.`
 2. Abrir o chat (`Enter`), digitar `/c teste` e enviar.
    - Esperado: `[AIC][PATCH] ChatMenu._OnTextInputSubmit(string) fired (first call; string arg received).`
-   - Esperado: `[AIC][CHAT] addressed from ChatMenu._OnTextInputSubmit (5 chars): "teste"`
+   - Esperado: `[AIC][CHAT] addressed to Thorin from ChatMenu._OnTextInputSubmit (5 chars): "teste"`
    - A mensagem original continua aparecendo no chat do jogo.
-3. Enviar `teste` (sem prefixo).
+3. Enviar `Thorin, bom dia`.
+   - Esperado: `[AIC][CHAT] addressed to Thorin from ...` + `[AIC][LLM] intent ...`
+   - Esperado no chat: uma linha `Thorin: ...` (a resposta do LLM).
+4. Enviar `teste` (sem prefixo/nome).
    - Esperado (com `VerboseLog=true`): `[AIC][CHAT] ignored (5 chars)` — **sem** o texto.
    - Com `VerboseLog=false`: nenhuma linha.
-4. Enviar `/C Teste` (maiúscula) e ` /c  teste ` (espaços) → ambas devem capturar `Teste`/`teste`.
-5. Enviar `/c` sozinho e `/casa` → devem ser ignorados (vazio / prefixo sem separador).
-6. Conferir que **não** há exceção nem stack no log e que o chat não travou.
-7. Opcional (co-op): mensagem de outro jogador **não** deve gerar linha de captura.
+5. Enviar `/C Teste` (maiúscula) e ` /c  teste ` (espaços) → ambas devem capturar `Teste`/`teste`.
+6. Enviar `/c` sozinho, `/casa` e `Thorinzinho, oi` → devem ser ignorados.
+7. Conferir que **não** há exceção nem stack no log e que o chat não travou.
+8. Opcional (co-op): mensagem de outro jogador **não** deve gerar linha de captura.
 
 ### Pendências desta branch
 
 - [x] Confirmar o **disparo** do patch (feito em 2026-10-28; ver evidência).
-- `AddressByName` por nome do companheiro: **não implementado** (default false; TODO em
-  `ChatAddressing`).
+- [x] `AddressByName` e `CompanionNames` implementados (v0.4.0); o harness cobre 8 casos de nome.
+- [ ] **Linha visual `Thorin: ...` em um mundo** — o texto/resposta foi confirmado via self-test;
+  a chamada real ao `_AddNewTextLine` precisa do teste na sessão normal do Steam.
 - LLM/resposta/voz/UI: fases seguintes.
 - Decidir se a mensagem `/c ...` deve continuar aparecendo no chat do jogo (hoje: sim).
 - Co-op: `SendInGameChatMessage` pode receber mensagens de outros jogadores no host; validar

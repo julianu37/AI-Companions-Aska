@@ -66,7 +66,7 @@ internal static class LlmClient
         if (ModConfig.AiEnabled is { Value: false })
             return LlmResult.Fail("AI.Enabled=false", command);
 
-        string systemPrompt = CompanionPrompt.BuildSystemPrompt(language);
+        string systemPrompt = CompanionPrompt.BuildSystemPrompt(language, command.CompanionName);
         LlmResponseMode[] modes = ModConfig.StructuredOutput is { Value: true }
             ? new[] { LlmResponseMode.JsonSchema, LlmResponseMode.JsonObject, LlmResponseMode.None }
             : new[] { LlmResponseMode.None };

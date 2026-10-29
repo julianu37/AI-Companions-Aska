@@ -29,7 +29,7 @@ internal static class CompanionPrompt
         return "pt-BR";
     }
 
-    internal static string BuildSystemPrompt(string language)
+    internal static string BuildSystemPrompt(string language, string companionName)
     {
         bool pt = language.StartsWith("pt", StringComparison.OrdinalIgnoreCase);
         string persona = ModConfig.Personality is { Value: not null }
@@ -39,13 +39,18 @@ internal static class CompanionPrompt
         if (persona.Length == 0)
             persona = pt ? "um companheiro leal, direto e prestativo" : "a loyal, direct and helpful companion";
 
+        string name = string.IsNullOrWhiteSpace(companionName)
+            ? (pt ? "Companheiro" : "Companion")
+            : companionName.Trim();
+
         string actions = string.Join(", ", LlmIntent.ValidActions);
 
         if (pt)
         {
             return string.Join("\n", new[]
             {
-                $"Você é {persona} em ASKA.",
+                $"Você é {name}, {persona}, em ASKA.",
+                "Fale sempre em português do Brasil.",
                 "Responda SEMPRE com um único objeto JSON, sem texto fora do JSON.",
                 "Contrato: {\"action\":\"...\",\"reply\":\"...\",\"target\":null,\"resource\":null,\"amount\":null}",
                 $"Ações permitidas: {actions}.",
@@ -59,7 +64,8 @@ internal static class CompanionPrompt
 
         return string.Join("\n", new[]
         {
-            $"You are {persona} in ASKA.",
+            $"You are {name}, {persona}, in ASKA.",
+            "Always speak in English.",
             "ALWAYS answer with a single JSON object, with no text outside the JSON.",
             "Contract: {\"action\":\"...\",\"reply\":\"...\",\"target\":null,\"resource\":null,\"amount\":null}",
             $"Allowed actions: {actions}.",

@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\AICompanionsAska\AI\LlmIntent.cs" Link="LlmIntent.cs" />
     <Compile Include="..\..\src\AICompanionsAska\AI\LlmProtocol.cs" Link="LlmProtocol.cs" />
+    <Compile Include="..\..\src\AICompanionsAska\Chat\NameAddressing.cs" Link="NameAddressing.cs" />
   </ItemGroup>
 
 </Project>
