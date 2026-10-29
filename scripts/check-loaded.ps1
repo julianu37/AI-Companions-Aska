@@ -17,7 +17,9 @@ $expected = $null
 $csproj = Join-Path $root "src\AICompanionsAska\AICompanionsAska.csproj"
 if (Test-Path $csproj) {
     [xml]$proj = Get-Content $csproj
-    $expected = $proj.Project.PropertyGroup.Version
+    $expected = @($proj.Project.PropertyGroup | ForEach-Object { $_.Version } |
+        Where-Object { $_ } | Select-Object -First 1)[0]
+    if ($expected) { $expected = $expected.Trim() }
 }
 
 Write-Host "== Esperado ==" -ForegroundColor Cyan
@@ -57,7 +59,7 @@ if (-not $lines) { exit 1 }
 if ($expected) {
     $loaded = $lines | Where-Object { $_.Line -match "AI Companions - ASKA\s+([0-9]+\.[0-9]+\.[0-9]+)" } |
         Select-Object -First 1
-    if ($loaded -and $loaded.Line -match $expected) {
+    if ($loaded -and $loaded.Line -like "*$expected*") {
         Write-Host ""
         Write-Host "Versao carregada confere: $expected" -ForegroundColor Green
     } else {
