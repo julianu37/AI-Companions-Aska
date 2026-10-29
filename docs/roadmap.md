@@ -22,14 +22,19 @@ jogo.
 
 ## M1 — Chat + LLM (ordem de seguir)
 
-**Branches:** `feat/chat-hook` (em andamento), `feat/llm-intent`, `feat/recruit-follow`.
+**Branches:** `feat/chat-hook` (confirmada), `feat/llm-intent` (confirmada via self-test),
+`feat/recruit-follow` (próxima).
+
+**Status:** captura e entendimento prontos; a execução da ordem no villager é o que falta.
 
 - [x] Capturar a mensagem do jogador no `ChatMenu` (prefixo `/c`; nome reservado).
   **Confirmado em jogo em 2026-10-28:** `_OnTextInputSubmit` dispara e captura; o
   `SendInGameChatMessage` também dispara e o dedupe evita captura dupla. Evidência:
   [`docs/re/chat-hook-verification.md`](re/chat-hook-verification.md).
-- [ ] Montar prompt (persona + contrato) e chamar o LM Studio em background.
-- [ ] Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
+- [x] Montar prompt (persona + contrato) e chamar o LM Studio em background.
+  `LlmClient` + `CompanionPrompt`; `json_schema` estrito aceito pelo `qwen2.5-3b-instruct`.
+- [x] Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
+  `LlmIntent` + harness de 19 casos; cadeia confirmada com self-test em jogo.
 - [ ] Recrutar um villager para a `PlayerParty` e executar `follow`, `stop`, `come`.
 - [ ] Responder no chat e no balão nativo (`DialogueMenu`).
 

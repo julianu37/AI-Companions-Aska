@@ -1,8 +1,8 @@
 # Arquitetura — AI Companions - ASKA
 
 Este documento descreve **como o mod funciona** e **como ele deve crescer**. O estado atual é
-`v0.2.0` (plugin que carrega + captura do chat); as camadas marcadas como "planejado" existem no
-roadmap.
+`v0.3.0` (plugin que carrega + captura do chat + LLM que entende e loga a intenção); as camadas
+marcadas como "planejado" existem no roadmap.
 
 ---
 
@@ -107,13 +107,16 @@ Sem prefixo/nome, a mensagem é ignorada (só o comprimento aparece no log com `
 
 ### 3.3 LLM e intenção
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `AI/LlmClient.cs` | `POST {BaseUrl}/chat/completions`, `Task` + fila |
-| `AI/LlmIntent.cs` | Parser tolerante do JSON (`action`, `reply`, `target`, `resource`, `amount`) |
-| `AI/CompanionPersona.cs` | Presets + texto livre |
-| `AI/CompanionMemory.cs` | Últimas N trocas por companheiro |
-| `AI/CompanionOrders.cs` | Intenção -> ordem nativa |
+| Arquivo | Responsabilidade | Status |
+|---|---|---|
+| `AI/LlmClient.cs` | `POST {BaseUrl}/chat/completions`, timeout, `json_schema` -> `json_object` -> sem formato | implementado |
+| `AI/LlmIntent.cs` | Parser tolerante (`action`, `reply`, `target`, `resource`, `amount`) | implementado |
+| `AI/CompanionPrompt.cs` | Persona + contrato + schema; idioma do jogo | implementado |
+| `AI/CompanionBrain.cs` | Fila, uma requisição por vez, drenagem na main thread | implementado |
+| `AI/CompanionBrainRunner.cs` | Ponte `Update` do Unity -> brain | implementado |
+| `AI/CompanionPersona.cs` | Presets + texto livre | planejado |
+| `AI/CompanionMemory.cs` | Últimas N trocas por companheiro | planejado |
+| `AI/CompanionOrders.cs` | Intenção -> ordem nativa | planejado (`feat/recruit-follow`) |
 
 **Contrato JSON (inicial):**
 
@@ -129,9 +132,12 @@ Sem prefixo/nome, a mensagem é ignorada (só o comprimento aparece no log com `
 
 - `response_format` = `json_schema` strict, com `enum` de ações.
 - Fallback: `json_object` -> sem formato, **uma tentativa cada**, só quando o provedor recusa o
-  formato (HTTP 400/erro citando `response_format`).
+  formato (HTTP 400/422 citando `response_format`/`json_schema`).
 - O parser aceita aliases e campos ausentes; nunca confia cegamente no modelo.
-- O prompt é montado por mensagem (persona + memória + contrato), no idioma do jogo.
+- O prompt é montado por mensagem (persona + contrato), no idioma do jogo; memória entra na
+  próxima fase.
+- A execução de ordens ainda não existe: o `CompanionBrain` apenas loga o intent
+  (`docs/re/llm-intent-verification.md`).
 
 ### 3.4 Companheiro e ordens
 
@@ -192,7 +198,7 @@ Seções iniciais:
 | Seção | Chaves |
 |---|---|
 | `General` | `Enabled`, `VerboseLog`, `Language` |
-| `AI` | `BaseUrl`, `Model`, `ApiKey`, `Temperature`, `TimeoutSeconds`, `ChatPrefix`, `AddressByName`, `Memory`, `Personality` |
+| `AI` | `Enabled`, `StructuredOutput`, `MaxTokens`, `SelfTest`, `BaseUrl`, `Model`, `ApiKey`, `Temperature`, `TimeoutSeconds`, `ChatPrefix`, `AddressByName`, `Memory`, `Personality` |
 | `Voice` | `Enabled`, `PushToTalkKey`, `SttModel`, `TtsModel`, `TtsVoice`, `TtsVolume`, `TtsSpeed` |
 | `UI` | `PanelKey`, `ShowHud` |
 
@@ -238,17 +244,21 @@ Seções iniciais:
 - Sem executar comandos do modelo além da lista fechada de ações.
 - Conteúdo do jogo/modelo é **dado**, nunca instrução.
 
-## 10. Estado atual (v0.2.0 — `feat/chat-hook`)
+## 10. Estado atual (v0.3.0 — `feat/llm-intent`)
 
-- `Plugin.Load()` loga ambiente e versão, e chama `ChatPatch.Apply()`.
-- `ModConfig` cria as seções/chaves iniciais; `AI.ChatPrefix` (default `/c`) e
-  `AI.AddressByName` (default **false**, ainda **não** implementado).
-- **Captura de chat implementada:** prefix Harmony em três candidatos
-  (`_OnTextInputSubmit`, `SendPlayerMessage`, `SendInGameChatMessage`) com fire-verify,
-  filtro de prefixo, dedupe de 750 ms e log
-  `[AIC][CHAT] addressed from <alvo> (N chars): "texto"` (texto só em `VerboseLog`).
-- Sem LLM, sem resposta, sem voz, sem UI.
-- **Status do hook de chat:** build 0 warnings / 0 errors; **aplicação e disparo confirmados
-  em jogo em 2026-10-28** (`_OnTextInputSubmit` capturou `/c teste`; `SendInGameChatMessage`
-  também disparou e o dedupe descartou a segunda captura; sem prefixo foi ignorado). Evidência:
-  `docs/re/chat-hook-verification.md`.
+- `Plugin.Load()` loga ambiente, aplica o patch de chat, registra o `CompanionBrainRunner` e
+  assina `ChatCapture.Captured`.
+- **Captura de chat confirmada em jogo (2026-10-28):** `_OnTextInputSubmit` capturou `/c teste`;
+  `SendInGameChatMessage` também disparou e o dedupe descartou a segunda captura; sem prefixo
+  foi ignorado. Evidência: `docs/re/chat-hook-verification.md`.
+- **LLM implementado:** `LlmClient` (OpenAI-compatible, `json_schema` estrito), `LlmIntent`
+  (parser tolerante), `CompanionPrompt` (persona + contrato, idioma do jogo), `CompanionBrain`
+  (fila + uma requisição por vez + drenagem na main thread) e self-test
+  (`AI.SelfTest` / `AIC_LLM_SELFTEST=1`).
+- **Cadeia confirmada:** self-test injeta `segue` no `ChatCapture`, o LLM responde
+  `action=follow` em `mode=JsonSchema` e o intent é logado. Evidência:
+  `docs/re/llm-intent-verification.md`.
+- **Ainda não executa ordens**, não responde no chat/balão, não tem voz nem UI. `AddressByName`
+  continua reservado (default false).
+- **Pendente:** teste integrado `/c ...` em um mundo com o LLM ligado; será feito na branch
+  `feat/recruit-follow`.

@@ -248,10 +248,13 @@ técnicos.
   pré-release no GitHub (DLL, sem gameplay).
 - `v0.2.0` — captura do chat por prefixo `/c`; **confirmada em jogo em 2026-10-28**
   (`_OnTextInputSubmit` + `SendInGameChatMessage`, com dedupe; sem prefixo é ignorado).
-  Evidência: `docs/re/chat-hook-verification.md`. LLM, voz e UI ainda não existem.
+  Evidência: `docs/re/chat-hook-verification.md`.
+- `v0.3.0` (**branch `feat/llm-intent`**) — cliente LM Studio/OpenAI-compatible, schema
+  estrito, parser de intenção e brain com fila. **Cadeia confirmada via self-test** (harness
+  19/19 + `action=follow` em jogo); ainda **não executa ordens**, sem resposta/voz/UI.
+  Evidência: `docs/re/llm-intent-verification.md`.
 - **Branches:**
-  - `feat/chat-hook` — captura do chat (confirmada em jogo; merge pendente).
-  - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção (próxima).
-  - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir.
+  - `feat/llm-intent` — LLM + parser (cadeia confirmada; merge pendente).
+  - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir (próxima).
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

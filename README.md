@@ -8,9 +8,10 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Status:** `v0.2.0` — **chat hook**. O plugin captura mensagens endereçadas no chat
-(`/c ...`) e loga o texto; **confirmado em jogo em 2026-10-28**. LLM, ordens, voz e UI ainda
-não existem.
+**Status:** `v0.3.0` — **LLM intent**. O plugin captura `/c ...` no chat, chama o LM Studio
+local (`qwen2.5-3b-instruct`) e **entende/loga a intenção** em JSON; a cadeia foi confirmada
+com self-test em jogo em 2026-10-28. Ainda **não executa ordens**, não responde no chat e não
+tem voz/UI.
 
 ---
 
@@ -155,9 +156,10 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > (LM Studio + Qwen2.5-3B-Instruct) and **local speech** (Whisper + Kokoro). Built on ASKA's
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
-**Status:** `v0.2.0` — **chat hook**. The plugin captures addressed chat messages (`/c ...`)
-and logs the text; **confirmed in game on 2026-10-28**. LLM, orders, voice and UI do not exist
-yet.
+**Status:** `v0.3.0` — **LLM intent**. The plugin captures `/c ...` from chat, calls local LM
+Studio (`qwen2.5-3b-instruct`) and **parses/logs the intent** as JSON; the chain was confirmed
+with an in-game self-test on 2026-10-28. It does **not execute orders**, reply in chat or
+provide voice/UI yet.
 
 ### Requirements
 

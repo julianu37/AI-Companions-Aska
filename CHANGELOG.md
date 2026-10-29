@@ -3,6 +3,35 @@
 Todas as mudanças relevantes do projeto. Formato baseado em Keep a Changelog;
 versionamento semântico (`MAJOR.MINOR.PATCH`).
 
+## [0.3.0] — 2026-10-28
+
+### Adicionado
+
+- **Cliente LLM local** (`AI/LlmClient.cs`): `POST {BaseUrl}/chat/completions`
+  OpenAI-compatible, timeout por requisição, `Authorization` opcional, cadeia de formato
+  `json_schema` -> `json_object` -> sem formato.
+- **Parser de intenção** (`AI/LlmIntent.cs`): `action`, `reply`, `target`, `resource`,
+  `amount`; aliases PT-BR/EN; code fence; amount string; `resource` manda quando o modelo
+  devolve o recurso no campo `action`.
+- **Prompt e schema** (`AI/CompanionPrompt.cs`): persona + contrato, idioma do jogo,
+  `enum` fechado das ações.
+- **Brain** (`AI/CompanionBrain.cs` + `CompanionBrainRunner`): fila, uma requisição por vez,
+  drenagem na main thread, log do intent; self-test por `AIC_LLM_SELFTEST=1`.
+- **Harness** `tests/LlmIntentHarness` (19 casos, todos passando).
+- Config `[AI] Enabled`, `StructuredOutput`, `MaxTokens`.
+
+### Notas
+
+- O LLM **entende** e loga a intenção, mas **ainda não executa** ordens.
+- Chat hook (`/c ...`) continua igual; o brain assina o evento `ChatCapture.Captured`.
+- **Cadeia confirmada com self-test em jogo (2026-10-28):** `ChatCapture` -> `CompanionBrain`
+  -> LM Studio -> `action=follow` em `mode=JsonSchema` (226 ms). Harness do parser: 19/19.
+  Evidência: `docs/re/llm-intent-verification.md`.
+- **Pendente:** `/c ...` real em um mundo com o LLM ligado (captura e cadeia já provadas
+  separadamente); será feito na branch `feat/recruit-follow`.
+- O `ChatMenu._OnTextInputSubmit` e o `NetworkChatSession.SendInGameChatMessage` são os
+  caminhos confirmados da captura (v0.2.0).
+
 ## [0.2.0] — 2026-10-28
 
 ### Adicionado

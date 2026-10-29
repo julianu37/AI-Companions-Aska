@@ -28,6 +28,13 @@ internal static class ChatCapture
     private static long _count;
     private static long _duplicates;
 
+    /// <summary>
+    /// Disparado na main thread quando uma mensagem endereçada é aceita (não
+    /// duplicada). O brain do LLM assina em <c>Plugin.Load</c>. É um evento
+    /// gerenciado nosso, não um <c>Action</c> do jogo.
+    /// </summary>
+    internal static event Action<ChatCommand>? Captured;
+
     /// <summary>Quantas mensagens endereçadas já foram capturadas nesta sessão.</summary>
     internal static long Count
     {
@@ -90,6 +97,16 @@ internal static class ChatCapture
                 AicLog.Flow("CHAT", $"addressed from {source} ({command.Text.Length} chars): \"{ForLog(command.Text)}\"");
             else
                 AicLog.Flow("CHAT", $"addressed from {source} ({command.Text.Length} chars)");
+
+            try
+            {
+                Captured?.Invoke(command);
+            }
+            catch (Exception ex)
+            {
+                // Um assinante com defeito não pode derrubar o trampoline do chat.
+                AicLog.Error($"[CHAT] Captured subscriber failed: {ex.GetType().Name}: {ex.Message}");
+            }
         }
         catch (Exception ex)
         {

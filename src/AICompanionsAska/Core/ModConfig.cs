@@ -12,6 +12,10 @@ internal static class ModConfig
     internal static ConfigEntry<bool> VerboseLog = null!;
     internal static ConfigEntry<string> Language = null!;
 
+    internal static ConfigEntry<bool> AiEnabled = null!;
+    internal static ConfigEntry<bool> StructuredOutput = null!;
+    internal static ConfigEntry<int> MaxTokens = null!;
+    internal static ConfigEntry<bool> SelfTest = null!;
     internal static ConfigEntry<string> BaseUrl = null!;
     internal static ConfigEntry<string> Model = null!;
     internal static ConfigEntry<string> ApiKey = null!;
@@ -49,6 +53,22 @@ internal static class ModConfig
             "Mod language: auto (follow the game), pt-BR or en.");
 
         // AI
+        AiEnabled = config.Bind(
+            "AI", "Enabled", true,
+            "Turns the LLM intent layer on/off. The chat hook still logs when off.");
+
+        StructuredOutput = config.Bind(
+            "AI", "StructuredOutput", true,
+            "Ask for response_format json_schema first; falls back to json_object and then no format.");
+
+        MaxTokens = config.Bind(
+            "AI", "MaxTokens", 220,
+            "Maximum tokens in the LLM response.");
+
+        SelfTest = config.Bind(
+            "AI", "SelfTest", false,
+            "Diagnostic: runs a one-shot LLM self-test on boot and logs the parsed intent. Leave false.");
+
         BaseUrl = config.Bind(
             "AI", "BaseUrl", "http://127.0.0.1:1234/v1",
             "OpenAI-compatible endpoint. Default: local LM Studio. Use 127.0.0.1, not localhost.");
