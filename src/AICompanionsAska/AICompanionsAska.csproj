@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Environment.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\Environment.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>AICompanionsAska</AssemblyName>
+    <RootNamespace>AICompanionsAska</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>0.1.0</Version>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AskaDir Condition="'$(AskaDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\ASKA</AskaDir>
+    <BepInExDir Condition="'$(BepInExDir)' == ''">$(AskaDir)\BepInEx</BepInExDir>
+    <DeployDir Condition="'$(DeployDir)' == ''">$(BepInExDir)\plugins\AI-Companions-Aska</DeployDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(BepInExDir)\core\BepInEx.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Common">
+      <HintPath>$(BepInExDir)\core\BepInEx.Unity.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.IL2CPP">
+      <HintPath>$(BepInExDir)\core\BepInEx.Unity.IL2CPP.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(BepInExDir)\core\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExDir)\core\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SemanticVersioning">
+      <HintPath>$(BepInExDir)\core\SemanticVersioning.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(BepInExDir)\interop\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(BepInExDir)\interop\Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(BepInExDir)\unity-libs\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="DeployToPlugins" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
+    <MakeDir Directories="$(DeployDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) to $(DeployDir)" />
+  </Target>
+
+</Project>
