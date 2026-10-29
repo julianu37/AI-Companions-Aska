@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using AICompanionsAska.Chat;
 using AICompanionsAska.Core;
@@ -8,36 +9,54 @@ using HarmonyLib;
 namespace AICompanionsAska.Patches;
 
 /// <summary>
-/// Harmony no envio de chat do jogador local:
-/// <c>SSSGame.UI.ChatMenu.SendPlayerMessage(string)</c>.
+/// Harmony no envio de chat do jogador local.
 /// <para>
-/// Por que este alvo: é público, tem assinatura simples (sem by-ref, sem tipos
-/// de inventário) e é o ponto por onde passa a mensagem que o jogador digitou.
-/// <c>_ReceivePlayerMessage(PlayerRef, string, bool)</c> é o caminho de
-/// <b>recebimento</b> (outros jogadores) e <b>não</b> é patchado.
+/// O alvo original (<c>SSSGame.UI.ChatMenu.SendPlayerMessage(string)</c>) foi
+/// aplicado e verificado em jogo, mas <b>não disparou</b> no teste de
+/// 2026-10-28: nessa build o submit do input parece passar por outro método
+/// (ou o stub foi inlinado). Para não apostar num único ponto, esta versão
+/// instrumenta três candidatos e deduplica a captura:
 /// </para>
+/// <list type="number">
+/// <item><c>ChatMenu._OnTextInputSubmit(string)</c> — submit do campo de texto
+/// (protegido; o caminho mais provável do Enter);</item>
+/// <item><c>ChatMenu.SendPlayerMessage(string)</c> — wrapper público (mantido);</item>
+/// <item><c>NetworkChatSession.SendInGameChatMessage(string)</c> — envio final
+/// (fallback; pode ser chamado por mensagens do sistema, mas o filtro de prefixo
+/// descarta o que não é comando).</item>
+/// </list>
 /// <para>
 /// Sem <c>Harmony.PatchAll()</c> e sem atributos <c>[HarmonyPatch(typeof(jogo)...)]</c>:
-/// o tipo é resolvido por nome dentro de <c>try/catch</c> (ver
+/// cada tipo é resolvido por nome dentro de <c>try/catch</c> (ver
 /// <c>docs/re/dead-ends.md</c>, item 8). O prefix só captura e degrada em
-/// silêncio em qualquer erro.
+/// silêncio em qualquer erro; a mensagem original continua no chat do jogo.
 /// </para>
 /// </summary>
 internal static class ChatPatch
 {
     private const string HarmonyId = PluginInfo.Guid + ".chat";
     private const string ChatMenuTypeName = "SSSGame.UI.ChatMenu";
-    private const string TargetMethodName = "SendPlayerMessage";
+    private const string ChatSessionTypeName = "SSSGame.Network.NetworkChatSession";
+
+    private static readonly (string TypeName, string MethodName)[] Targets =
+    {
+        (ChatMenuTypeName, "_OnTextInputSubmit"),
+        (ChatMenuTypeName, "SendPlayerMessage"),
+        (ChatSessionTypeName, "SendInGameChatMessage"),
+    };
+
+    private static readonly object FiredLock = new();
+    private static readonly HashSet<string> FiredTargets = new(StringComparer.Ordinal);
 
     private static Harmony? _harmony;
-    private static bool _firedOnce;
 
-    /// <summary>Verdadeiro enquanto o prefix estiver anexado.</summary>
+    /// <summary>Verdadeiro enquanto ao menos um dos prefixes estiver anexado.</summary>
     internal static bool Applied { get; private set; }
 
     /// <summary>
-    /// Resolve o alvo e anexa o prefix. Idempotente: chamar duas vezes não
-    /// duplica o patch. Falha de resolução vira log de erro, nunca exceção.
+    /// Resolve os alvos e anexa o prefix em cada um. Idempotente: chamar duas
+    /// vezes não duplica o patch. Falha de um alvo não impede os outros; falha
+    /// de todos vira log de erro, nunca exceção.
     /// </summary>
     internal static void Apply()
     {
@@ -47,48 +66,86 @@ internal static class ChatPatch
             return;
         }
 
+        Harmony? harmony = null;
         try
         {
-            Type? chatMenu = ResolveChatMenu();
-            if (chatMenu is null)
-            {
-                AicLog.Error($"[PATCH] type not found: {ChatMenuTypeName}. Chat hook disabled; update the mod for this game build.");
-                return;
-            }
-
-            MethodInfo? target = ResolveTarget(chatMenu);
-            if (target is null)
-            {
-                AicLog.Error($"[PATCH] method not found: {ChatMenuTypeName}.{TargetMethodName}(string). Chat hook disabled.");
-                return;
-            }
-
             MethodInfo? prefix = typeof(ChatPatch).GetMethod(
                 nameof(Prefix),
                 BindingFlags.Static | BindingFlags.NonPublic);
             if (prefix is null)
             {
-                AicLog.Error("[PATCH] internal error: ChatPatch.Prefix(string) not found. Chat hook disabled.");
+                AicLog.Error("[PATCH] internal error: ChatPatch.Prefix(string, MethodBase) not found. Chat hook disabled.");
                 return;
             }
 
-            var harmony = new Harmony(HarmonyId);
-            harmony.Patch(target, prefix: new HarmonyMethod(prefix));
+            harmony = new Harmony(HarmonyId);
+            var applied = new List<string>();
+            var missing = new List<string>();
+
+            foreach ((string typeName, string methodName) in Targets)
+            {
+                Type? type = ResolveGameType(typeName);
+                if (type is null)
+                {
+                    missing.Add($"{typeName} (type)");
+                    continue;
+                }
+
+                MethodInfo? target = ResolveMethod(type, methodName);
+                if (target is null)
+                {
+                    missing.Add($"{typeName}.{methodName}(string)");
+                    continue;
+                }
+
+                try
+                {
+                    harmony.Patch(target, prefix: new HarmonyMethod(prefix));
+                    applied.Add(DescribeSignature(target));
+                }
+                catch (Exception ex)
+                {
+                    missing.Add($"{typeName}.{methodName} ({ex.GetType().Name}: {ex.Message})");
+                }
+            }
+
+            if (applied.Count == 0)
+            {
+                AicLog.Error($"[PATCH] no chat target could be patched. Missing: {string.Join("; ", missing)}. Chat hook disabled.");
+                return;
+            }
 
             _harmony = harmony;
-            _firedOnce = false;
             Applied = true;
+            lock (FiredLock)
+                FiredTargets.Clear();
 
-            bool verified = Harmony.HasAnyPatches(HarmonyId);
+            bool registered = Harmony.HasAnyPatches(HarmonyId);
             AicLog.Flow(
                 "PATCH",
-                $"applied chat hook: {ChatMenuTypeName}.{TargetMethodName}(string) | id={HarmonyId} | verified={verified} | prefix=\"{ChatAddressing.GetPrefix()}\" | enabled={IsEnabled()}");
+                $"applied chat hook(s): {string.Join(", ", applied)} | id={HarmonyId} | harmony-registered={registered} | prefix=\"{ChatAddressing.GetPrefix()}\" | enabled={IsEnabled()}");
 
-            if (!verified)
+            if (missing.Count > 0)
+                AicLog.Warn($"[PATCH] chat targets not found (ignored): {string.Join("; ", missing)}");
+
+            if (!registered)
                 AicLog.Warn("[PATCH] Harmony reported no patches for the chat hook id; capture may never fire.");
+
+            AicLog.Flow("PATCH", "harmony-registered=True is NOT proof of firing; wait for a '... fired' line after a real chat submit.");
         }
         catch (Exception ex)
         {
+            try
+            {
+                // Se o Patch() falhou no meio, remove o que chegou a ser anexado
+                // antes de perder a referência (evita prefix duplicado num retry).
+                harmony?.UnpatchSelf();
+            }
+            catch
+            {
+                // melhor um patch parcial do que mascarar a exceção original
+            }
+
             Applied = false;
             _harmony = null;
             AicLog.Error($"[PATCH] failed to apply chat hook: {ex.GetType().Name}: {ex.Message}");
@@ -96,7 +153,7 @@ internal static class ChatPatch
     }
 
     /// <summary>
-    /// Remove o patch. Idempotente e seguro depois de um <see cref="Apply"/>
+    /// Remove os patches. Idempotente e seguro depois de um <see cref="Apply"/>
     /// que falhou.
     /// </summary>
     internal static void Unapply()
@@ -128,30 +185,34 @@ internal static class ChatPatch
     /// <summary>
     /// Prefix curto: não altera o argumento, não cancela o original
     /// (<c>void</c>, sem <c>__runOriginal</c>) — a mensagem continua indo para o
-    /// chat do jogo. Fire-verify na primeira execução.
+    /// chat do jogo. Fire-verify por alvo na primeira execução; a captura é
+    /// deduplicada por <see cref="ChatCapture"/> quando mais de um alvo dispara
+    /// para o mesmo submit.
     /// </summary>
-    private static void Prefix(string __0)
+    private static void Prefix(string __0, MethodBase __originalMethod)
     {
         try
         {
+            string target = Describe(__originalMethod);
+
+            // Fire-verify antes do gate: se o jogador desligou o mod no .cfg,
+            // ainda queremos saber que o Harmony chegou ao método (e não que o
+            // AOT inlinou o alvo).
+            if (MarkFired(target))
+                AicLog.Flow("PATCH", $"{target}(string) fired (first call; string arg received).");
+
             if (!IsEnabled())
                 return;
 
-            if (!_firedOnce)
-            {
-                _firedOnce = true;
-                AicLog.Flow("PATCH", $"{ChatMenuTypeName}.{TargetMethodName} fired (first call; string arg received).");
-            }
-
             if (ChatAddressing.TryParse(__0, out ChatCommand command))
             {
-                ChatCapture.Submit(command);
+                ChatCapture.Submit(command, target);
                 return;
             }
 
             // Mensagem não endereçada: não processamos e NÃO logamos o conteúdo.
             if (ModConfig.VerboseLog is { Value: true })
-                AicLog.Flow("CHAT", $"ignored ({__0?.Length ?? 0} chars)");
+                AicLog.Flow("CHAT", $"ignored on {target} ({__0?.Length ?? 0} chars)");
         }
         catch (Exception ex)
         {
@@ -162,18 +223,40 @@ internal static class ChatPatch
 
     private static bool IsEnabled() => ModConfig.Enabled is { Value: true };
 
+    /// <summary>Assinatura resolvida, para o log de apply não mentir sobre o alvo.</summary>
+    private static string DescribeSignature(MethodInfo method)
+    {
+        string parameters = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
+        return $"{method.DeclaringType?.FullName ?? "?"}.{method.Name}({parameters})";
+    }
+
+    private static string Describe(MethodBase? method)
+    {
+        if (method is null)
+            return "unknown";
+
+        string? type = method.DeclaringType?.Name;
+        return string.IsNullOrEmpty(type) ? method.Name : $"{type}.{method.Name}";
+    }
+
+    private static bool MarkFired(string target)
+    {
+        lock (FiredLock)
+            return FiredTargets.Add(target);
+    }
+
     /// <summary>
-    /// Resolve o tipo do chat sem <c>AccessTools.TypeByName</c>: aquele caminho
-    /// varre <c>Assembly.GetTypes()</c> de todas as assemblies e, nesta build,
-    /// o stub de <c>UnityEngine.CoreModule</c> gera um
-    /// <c>ReflectionTypeLoadException</c> barulhento (mas inofensivo) no
-    /// HarmonyX. <c>Type.GetType</c> + <c>Assembly.GetType</c> são pontuais.
+    /// Resolve um tipo do jogo por nome, sem <c>AccessTools.TypeByName</c>: aquele
+    /// caminho varre <c>Assembly.GetTypes()</c> de todas as assemblies e, nesta
+    /// build, o stub de <c>UnityEngine.CoreModule</c> gera um
+    /// <c>ReflectionTypeLoadException</c> barulhento (mas inofensivo) no HarmonyX.
+    /// <c>Type.GetType</c> + <c>Assembly.GetType</c> são pontuais.
     /// </summary>
-    private static Type? ResolveChatMenu()
+    private static Type? ResolveGameType(string fullName)
     {
         try
         {
-            Type? direct = Type.GetType($"{ChatMenuTypeName}, Assembly-CSharp", throwOnError: false);
+            Type? direct = Type.GetType($"{fullName}, Assembly-CSharp", throwOnError: false);
             if (direct is not null)
                 return direct;
         }
@@ -189,7 +272,7 @@ internal static class ChatPatch
 
             try
             {
-                Type? type = assembly.GetType(ChatMenuTypeName, throwOnError: false);
+                Type? type = assembly.GetType(fullName, throwOnError: false);
                 if (type is not null)
                     return type;
             }
@@ -203,33 +286,32 @@ internal static class ChatPatch
     }
 
     /// <summary>
-    /// Resolve <c>SendPlayerMessage(string)</c>. Caminho normal:
+    /// Resolve um método com um único <c>string</c>. Caminho normal:
     /// <see cref="AccessTools.Method(Type, string, Type[], Type[])"/>; se o
-    /// interop mudar o tipo do parâmetro, cai para uma varredura de métodos com
-    /// um único <c>string</c> e loga o que achou.
+    /// interop mudar o tipo do parâmetro, cai para uma varredura de métodos
+    /// declarados com um único <c>string</c>.
     /// </summary>
-    private static MethodInfo? ResolveTarget(Type chatMenu)
+    private static MethodInfo? ResolveMethod(Type type, string methodName)
     {
-        MethodInfo? exact = AccessTools.Method(chatMenu, TargetMethodName, new[] { typeof(string) });
+        MethodInfo? exact = AccessTools.Method(type, methodName, new[] { typeof(string) });
         if (exact is not null)
             return exact;
 
-        var candidates = new List<string>();
-        foreach (MethodInfo method in chatMenu.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        foreach (MethodInfo method in type.GetMethods(
+                     BindingFlags.Public | BindingFlags.NonPublic |
+                     BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
-            if (!string.Equals(method.Name, TargetMethodName, StringComparison.Ordinal))
+            if (!string.Equals(method.Name, methodName, StringComparison.Ordinal))
                 continue;
 
             ParameterInfo[] parameters = method.GetParameters();
-            candidates.Add($"{method.Name}({parameters.Length} params)");
             if (parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
             {
-                AicLog.Warn($"[PATCH] exact signature miss; using fallback {method.Name}(string).");
+                AicLog.Warn($"[PATCH] exact signature miss; using fallback {type.Name}.{method.Name}(string).");
                 return method;
             }
         }
 
-        AicLog.Error($"[PATCH] no single-string overload of {ChatMenuTypeName}.{TargetMethodName}. Candidates: {(candidates.Count == 0 ? "none" : string.Join(", ", candidates))}");
         return null;
     }
 }

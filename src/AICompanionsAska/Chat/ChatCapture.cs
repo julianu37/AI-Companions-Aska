@@ -9,7 +9,9 @@ namespace AICompanionsAska.Chat;
 /// <see cref="TryGetLast"/> e enfileira o prompt.
 /// <para>
 /// Chamado da main thread (prefix Harmony do chat). Não bloqueia, não faz I/O
-/// além do log e não toca em objetos do jogo.
+/// além do log e não toca em objetos do jogo. Como o patch instrumenta mais de
+/// um candidato do mesmo submit, uma mensagem idêntica vinda de outro alvo
+/// dentro de <see cref="DuplicateWindowMs"/> é descartada (evita captura dupla).
 /// </para>
 /// </summary>
 internal static class ChatCapture
@@ -17,10 +19,14 @@ internal static class ChatCapture
     /// <summary>Limite de caracteres exibidos no log (não trunca o <see cref="ChatCommand"/>).</summary>
     private const int MaxLoggedChars = 300;
 
+    /// <summary>Janela para considerar dois alvos do mesmo submit como duplicata.</summary>
+    private const double DuplicateWindowMs = 750;
+
     private static readonly object Sync = new();
     private static ChatCommand _last;
     private static bool _hasLast;
     private static long _count;
+    private static long _duplicates;
 
     /// <summary>Quantas mensagens endereçadas já foram capturadas nesta sessão.</summary>
     internal static long Count
@@ -32,22 +38,58 @@ internal static class ChatCapture
         }
     }
 
+    /// <summary>Quantas capturas foram descartadas como duplicata do mesmo submit.</summary>
+    internal static long Duplicates
+    {
+        get
+        {
+            lock (Sync)
+                return _duplicates;
+        }
+    }
+
     /// <summary>
     /// Registra um comando endereçado. Log obrigatório (é o critério de aceite
     /// do probe) e guarda como <see cref="TryGetLast"/>.
     /// </summary>
-    internal static void Submit(ChatCommand command)
+    /// <param name="command">Comando já filtrado.</param>
+    /// <param name="source">Alvo Harmony que disparou (para diagnóstico).</param>
+    internal static void Submit(ChatCommand command, string source)
     {
         try
         {
+            bool duplicate;
             lock (Sync)
             {
-                _last = command;
-                _hasLast = true;
-                _count++;
+                duplicate =
+                    _hasLast &&
+                    string.Equals(_last.Text, command.Text, StringComparison.Ordinal) &&
+                    (command.TimestampUtc - _last.TimestampUtc).TotalMilliseconds < DuplicateWindowMs;
+
+                if (duplicate)
+                {
+                    _duplicates++;
+                }
+                else
+                {
+                    _last = command;
+                    _hasLast = true;
+                    _count++;
+                }
             }
 
-            AicLog.Flow("CHAT", $"addressed ({command.Text.Length} chars): \"{ForLog(command.Text)}\"");
+            if (duplicate)
+            {
+                AicLog.Flow("CHAT", $"duplicate from {source} ignored ({command.Text.Length} chars).");
+                return;
+            }
+
+            // O texto do jogador só vai para o log em modo verbose; no release
+            // apenas o comprimento, para não vazar conversa em bug reports.
+            if (ModConfig.VerboseLog is { Value: true })
+                AicLog.Flow("CHAT", $"addressed from {source} ({command.Text.Length} chars): \"{ForLog(command.Text)}\"");
+            else
+                AicLog.Flow("CHAT", $"addressed from {source} ({command.Text.Length} chars)");
         }
         catch (Exception ex)
         {
@@ -56,14 +98,15 @@ internal static class ChatCapture
         }
     }
 
-    /// <summary>Copia a última mensagem endereçada, se houver.</summary>
-    internal static bool TryGetLast(out ChatCommand command)
+    /// <summary>
+    /// Devolve a última mensagem endereçada, ou <c>null</c> se ainda não houve
+    /// nenhuma. Evita a armadilha de um <c>out</c> com <c>Text</c> nulo no
+    /// consumidor da próxima fase.
+    /// </summary>
+    internal static ChatCommand? TryGetLast()
     {
         lock (Sync)
-        {
-            command = _last;
-            return _hasLast;
-        }
+            return _hasLast ? _last : null;
     }
 
     /// <summary>Limpa o estado (saída do mundo / unload). Idempotente.</summary>
@@ -74,6 +117,7 @@ internal static class ChatCapture
             _last = default;
             _hasLast = false;
             _count = 0;
+            _duplicates = 0;
         }
     }
 

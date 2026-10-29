@@ -61,8 +61,9 @@ $br.Close(); $fs.Close()
 | Config | `...\BepInEx\config` |
 
 O BepInEx foi instalado pelo **Vortex**; existe um `vortex.deployment.aska-bepinex-new.json` na
-raiz do jogo. O log de **2026-10-28** confirma **1 plugin** (`AI Companions - ASKA 0.1.0`);
-antes do nosso, o mesmo log mostrava 0 plugins.
+raiz do jogo. O log de **2026-10-28** confirma **1 plugin**: o scaffold carregou
+`AI Companions - ASKA 0.1.0` e a branch de chat passou a carregar `0.2.0`; antes do nosso, o
+mesmo log mostrava 0 plugins.
 
 ## 3. Formato das interop assemblies
 

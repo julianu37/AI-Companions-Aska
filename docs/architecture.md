@@ -63,7 +63,7 @@ Regras:
 
 | Arquivo | Responsabilidade | Status |
 |---|---|---|
-| `Patches/ChatPatch.cs` | Harmony em `SSSGame.UI.ChatMenu.SendPlayerMessage(string)`; prefix curto, fire-verify, `Apply`/`Unapply` idempotentes | implementado (`feat/chat-hook`) |
+| `Patches/ChatPatch.cs` | Harmony em `ChatMenu._OnTextInputSubmit(string)`, `ChatMenu.SendPlayerMessage(string)` e `NetworkChatSession.SendInGameChatMessage(string)`; prefix curto, fire-verify por alvo, `Apply`/`Unapply` idempotentes | implementado (`feat/chat-hook`) |
 | `Chat/ChatCommand.cs` | Struct `Raw`/`Text`/`Addressed`/`Source`/`TimestampUtc` | implementado |
 | `Chat/ChatAddressing.cs` | `TryParse(raw, out command)`: trim, prefixo `AI.ChatPrefix`, limpeza | implementado (só prefixo) |
 | `Chat/ChatCapture.cs` | Porta única das mensagens endereçadas: log + `Last` | implementado (só log/`Last`) |
@@ -74,11 +74,14 @@ Regras:
 **Fluxo implementado (captura):**
 
 ```
-ChatMenu.SendPlayerMessage(string)      [jogo, main thread]
-  → ChatPatch.Prefix(string __0)         [try/catch; nada escapa]
+ChatMenu._OnTextInputSubmit(string)                [jogo, main thread]
+ChatMenu.SendPlayerMessage(string)                 [jogo, main thread]
+NetworkChatSession.SendInGameChatMessage(string)   [jogo, main thread]
+  → ChatPatch.Prefix(string __0, MethodBase)       [try/catch; nada escapa]
+      → fire-verify por alvo                       (antes do gate Enabled)
       → ModConfig.Enabled?               false → return
       → ChatAddressing.TryParse(__0)     false → [AIC][CHAT] ignored (N chars) se VerboseLog
-      → ChatCapture.Submit(command)      true  → [AIC][CHAT] addressed (N chars): "texto"
+      → ChatCapture.Submit(command, src) true  → [AIC][CHAT] addressed from <alvo> (N chars): "texto"
 ```
 
 - O patch **não** consome a mensagem: o prefix retorna `void`, então a mensagem original
@@ -96,9 +99,9 @@ reage a mensagens **endereçadas**:
   precisa terminar a mensagem ou ser seguido de espaço — `/casa` não é comando);
   **vazio = captura desligada**;
 - nome do companheiro no início (`Thorin, segue`) — **reservado**: `AI.AddressByName` existe
-  na config mas **não** captura nada ainda (TODO em `ChatAddressing.TryParse`). Só deve ser
-  ligado quando houver lista de companheiros recrutados e uma regra conservadora (nome
-  completo + separador), para não sequestrar o chat em co-op.
+  na config (default **false**) mas **não** captura nada ainda (TODO em `ChatAddressing.TryParse`).
+  Só deve ser ligado quando houver lista de companheiros recrutados e uma regra conservadora
+  (nome completo + separador), para não sequestrar o chat em co-op.
 
 Sem prefixo/nome, a mensagem é ignorada (só o comprimento aparece no log com `VerboseLog`).
 
@@ -239,9 +242,11 @@ Seções iniciais:
 
 - `Plugin.Load()` loga ambiente e versão, e chama `ChatPatch.Apply()`.
 - `ModConfig` cria as seções/chaves iniciais; `AI.ChatPrefix` (default `/c`) e
-  `AI.AddressByName` agora têm efeito documentado (o segundo ainda **não** implementado).
-- **Captura de chat implementada:** prefix Harmony em `SSSGame.UI.ChatMenu.SendPlayerMessage`
-  com fire-verify, filtro de prefixo e log `[AIC][CHAT] addressed (N chars): "texto"`.
+  `AI.AddressByName` (default **false**, ainda **não** implementado).
+- **Captura de chat implementada:** prefix Harmony em três candidatos
+  (`_OnTextInputSubmit`, `SendPlayerMessage`, `SendInGameChatMessage`) com fire-verify,
+  filtro de prefixo, dedupe de 750 ms e log
+  `[AIC][CHAT] addressed from <alvo> (N chars): "texto"` (texto só em `VerboseLog`).
 - Sem LLM, sem resposta, sem voz, sem UI.
 - **Status do hook de chat:** build 0 warnings / 0 errors; **aplicação confirmada em jogo em
   2026-10-28** (`verified=True`). O **disparo em uma mensagem real** (`/c teste`) está

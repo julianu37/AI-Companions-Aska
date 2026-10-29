@@ -76,9 +76,10 @@ internal static class ModConfig
             "Empty = chat hook disabled.");
 
         AddressByName = config.Bind(
-            "AI", "AddressByName", true,
+            "AI", "AddressByName", false,
             "Also accept messages that start with the companion name. " +
-            "Reserved for a later phase: NOT implemented yet (only the prefix is captured).");
+            "Reserved for a later phase: NOT implemented yet (only the prefix is captured). " +
+            "Default false; enabling it now has no effect.");
 
         Memory = config.Bind(
             "AI", "Memory", 4,

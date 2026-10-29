@@ -48,7 +48,8 @@ em jogo**. LLM, ordens, voz e UI ainda não existem.
 2. Copie o conteúdo do release (ou a pasta `AI-Companions-Aska` do build local) para:
    `...\ASKA\BepInEx\plugins\AI-Companions-Aska\`.
 3. Abra o jogo **pelo Steam** e confira `BepInEx\LogOutput.log`:
-   deve aparecer `AI Companions - ASKA 0.1.0` e `loaded successfully`.
+   deve aparecer a versão que você compilou/baixou (neste branch, `AI Companions - ASKA 0.2.0`)
+   e `loaded successfully`.
 4. (Quando o LLM entrar) abra o LM Studio, carregue o `qwen2.5-3b-instruct` e inicie o
    **Local Server** em `127.0.0.1:1234`.
 
@@ -74,7 +75,7 @@ O `Environment.props` é **local** e não vai para o repositório. O build refer
 | `V` (segurar) | Push-to-talk (configurável) |
 | `I` | Painel da IA (configurável) — a partir da fase de UI |
 
-> As teclas e o prefixo ainda não estão ativos no `v0.1.0`; a tabela é o contrato da fase 1.
+> O prefixo `/c` está ativo desde a `0.2.0` (captura no log); as teclas de voz/painel ainda não.
 > O BepInEx Configuration Manager (se instalado) usa a tecla dele; não é uma tecla do mod.
 
 ## Arquitetura (resumo)

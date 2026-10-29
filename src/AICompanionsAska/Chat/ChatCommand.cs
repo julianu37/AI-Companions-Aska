@@ -53,9 +53,10 @@ internal readonly struct ChatCommand
         new(raw, text, addressed: true, ChatSource.Chat, DateTime.UtcNow);
 
     /// <summary>
-    /// Resumo seguro para log: sem quebras de linha e sem o texto cru bruto em
-    /// dobra. Chamado só em pontos de fluxo (não por frame).
+    /// Resumo seguro para log: **não** inclui o texto (pode conter quebras de
+    /// linha ou conversa privada). Use <c>ChatCapture</c> para o texto
+    /// sanitizado e só em modo verbose. Chamado só em pontos de fluxo.
     /// </summary>
     public override string ToString() =>
-        $"{(Addressed ? "addressed" : "plain")}/{Source} ({Text.Length} chars) \"{Text}\"";
+        $"{(Addressed ? "addressed" : "plain")}/{Source} ({Text.Length} chars)";
 }

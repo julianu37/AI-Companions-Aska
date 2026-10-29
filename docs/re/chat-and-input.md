@@ -56,13 +56,23 @@
 
 ## 2. Captura implementada (`feat/chat-hook`)
 
+O alvo único original (`ChatMenu.SendPlayerMessage`) **aplicou e verificou, mas não disparou**
+no teste de 2026-10-28. A branch passou a instrumentar três candidatos, com deduplicação:
+
 ```
-Harmony Prefix em ChatMenu.SendPlayerMessage(string __0)   [ChatPatch]
-  → ModConfig.Enabled?            false → return (jogo segue normal)
-  → ChatAddressing.TryParse(__0)  false → [AIC][CHAT] ignored (N chars) se VerboseLog
-  → ChatCapture.Submit(cmd)       true  → [AIC][CHAT] addressed (N chars): "texto"
-  → (a mensagem original segue para o chat do jogo: prefix retorna void)
+Harmony Prefix em [ChatPatch]:
+  ChatMenu._OnTextInputSubmit(string)          ← submit do campo (provável Enter)
+  ChatMenu.SendPlayerMessage(string)           ← wrapper público (mantido)
+  NetworkChatSession.SendInGameChatMessage(string) ← envio final (fallback)
+    → fire-verify por alvo (antes do gate Enabled)
+    → ModConfig.Enabled?            false → return (jogo segue normal)
+    → ChatAddressing.TryParse(__0)  false → [AIC][CHAT] ignored (N chars) se VerboseLog
+    → ChatCapture.Submit(cmd, src)  true  → [AIC][CHAT] addressed from <alvo> (N chars): "texto"
+    → (a mensagem original segue para o chat do jogo: prefix retorna void)
 ```
+
+`ChatCapture` descarta a segunda captura da mesma mensagem dentro de 750 ms — os três alvos
+podem disparar para um único submit. O log diz qual alvo capturou.
 
 **Decisões tomadas nesta branch:**
 
@@ -78,11 +88,15 @@ Harmony Prefix em ChatMenu.SendPlayerMessage(string __0)   [ChatPatch]
 - Texto ignorado **não** é logado (apenas o comprimento), para não vazar conversa alheia.
 - `ChatCapture` guarda `Last` (`TryGetLast`) para a fase `feat/llm-intent`; `Plugin.Unload()`
   chama `ChatPatch.Unapply()` + `ChatCapture.Clear()`.
-- Sem `Harmony.PatchAll()`/atributos: tipo por `Type.GetType("SSSGame.UI.ChatMenu, Assembly-CSharp")`
-  + varredura pontual de `Assembly.GetType` (evita o `AllTypes()` do `AccessTools.TypeByName`),
-  método por `AccessTools.Method(..., new[] { typeof(string) })` (com fallback de varredura),
-  `new Harmony(PluginInfo.Guid + ".chat")` e `harmony.Patch(...)` dentro de `try/catch`.
-  Fire-verify: `[AIC][PATCH] applied chat hook ...` + `... fired (first call ...)`.
+- Sem `Harmony.PatchAll()`/atributos: cada tipo é resolvido por
+  `Type.GetType("<tipo>, Assembly-CSharp")` + varredura pontual de `Assembly.GetType` (evita o
+  `AllTypes()` do `AccessTools.TypeByName`), método por `AccessTools.Method(..., new[] {
+  typeof(string) })` (com fallback de varredura), `new Harmony(PluginInfo.Guid + ".chat")` e
+  `harmony.Patch(...)` dentro de `try/catch` por alvo.
+  Fire-verify: `[AIC][PATCH] applied chat hook(s): ...` + `... fired (first call ...)`.
+- O log separa **`harmony-registered=True`** (o Harmony registrou) de **`fired`** (o alvo
+  realmente executou); só o segundo prova o caminho. Um alvo não encontrado não impede os
+  outros.
 
 **Risco conhecido (não confirmado em jogo):** `SendPlayerMessage` é `async void` — o patch
 acerta o *stub* que inicia a state machine `<SendPlayerMessage>d__83`. Se o AOT inlinar esse
@@ -141,9 +155,13 @@ ao texto, e tocar o TTS em paralelo. O `ref string` é do método nativo; **cham
 patch. Build: `dotnet build AICompanionsAska.sln -c Release` → **0 warnings, 0 errors**,
 DLL deployada em `BepInEx\plugins\AI-Companions-Aska`.
 
-**Aplicação confirmada em jogo (2026-10-28):** o ASKA carregou o plugin e o log mostrou
-`[AIC][PATCH] applied chat hook ... verified=True`. O **disparo do prefix** em uma mensagem
-real (`/c teste`) ainda está **pendente de confirmação**; é o que o roteiro abaixo cobre.
+**Aplicação confirmada em jogo (2026-10-28):** o ASKA carregou o plugin 0.2.0 e o log mostrou
+`[AIC][PATCH] applied chat hook(s): ChatMenu._OnTextInputSubmit(...), ChatMenu.SendPlayerMessage(...),
+NetworkChatSession.SendInGameChatMessage(...) | harmony-registered=True`. O teste anterior, com
+o alvo único `SendPlayerMessage`, **não gerou linha `[AIC][CHAT]`** — daí o probe múltiplo.
+
+O **disparo do prefix** em uma mensagem real (`/c teste`) ainda está **pendente de
+confirmação**; é o que o roteiro abaixo cobre.
 
 **Validação fora do jogo (2026-10-28):** as classes puras (`ChatCommand`, `ChatAddressing`,
 `ChatCapture`) foram compiladas num harness de console temporário (fora do repositório, com
@@ -153,9 +171,10 @@ O que **não** foi validado é o lado do jogo: resolução do tipo, aplicação 
 
 ### Roteiro de teste
 
-1. Subir o jogo e conferir no `BepInEx\LogOutput.log` a versão `0.1.0` e as linhas:
-   - `[AIC] Enabled=True | chat hook active (no LLM/voice yet) | ChatPrefix="/c" | AddressByName=True (reserved, not applied) | hook applied=True.`
-   - `[AIC][PATCH] applied chat hook: SSSGame.UI.ChatMenu.SendPlayerMessage(string) | id=julianu37.AICompanionsAska.chat | verified=True | prefix="/c" | enabled=True`
+1. Subir o jogo e conferir no `BepInEx\LogOutput.log` a versão `0.2.0` e as linhas:
+   - `[AIC] Enabled=True | chat hook active (no LLM/voice yet) | ChatPrefix="/c" | AddressByName=False (reserved, not applied) | hook applied=True.`
+   - `[AIC][PATCH] applied chat hook(s): ... | harmony-registered=True | prefix="/c" | enabled=True`
+   - `[AIC][PATCH] harmony-registered=True is NOT proof of firing; wait for a '... fired' line after a real chat submit.`
 2. Abrir o chat (`Enter`), digitar `/c teste` e enviar.
    - Esperado: `[AIC][PATCH] SSSGame.UI.ChatMenu.SendPlayerMessage fired (first call; string arg received).`
    - Esperado: `[AIC][CHAT] addressed (5 chars): "teste"`
