@@ -1,0 +1,52 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+
+# Local machine configuration (copy Environment.props.example to Environment.props)
+Environment.props
+.env
+.env.*
+!.env.example
+
+# Game / runtime artifacts
+BepInEx/
+LogOutput.log
+ErrorLog.log
+*.log
+*.dmp
+*.save
+*.world
+UserData/
+plugins/
+Mods/
+UserLibs/
+
+# Large local models and audio (never commit these)
+models/
+whisper/
+tts/
+*.ggml
+*.onnx
+*.bin
+*.wav
+*.mp3
+*.ogg
+
+# OS / editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+
+# OpenCode local caches
+.opencode/cache/
+.opencode/tmp/

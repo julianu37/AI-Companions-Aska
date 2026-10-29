@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "aska-mod-lead",
+  "references": {
+    "bepinex": {
+      "repository": "BepInEx/BepInEx",
+      "description": "Fonte oficial do BepInEx 6 (plugin, config, logging, IL2CPP, Harmony). Use para confirmar APIs de plugin e ciclo de vida."
+    },
+    "il2cppinterop": {
+      "repository": "BepInEx/Il2CppInterop",
+      "description": "Gerador das interop assemblies e runtime do Il2CppInterop. Use para entender wrappers, injecao e limitacoes."
+    },
+    "harmony": {
+      "repository": "pardeike/Harmony",
+      "description": "Harmony/HarmonyX: patches, prefix/postfix, transpilers. Use para confirmar assinaturas e comportamento de patch."
+    },
+    "aska-modding-research": {
+      "repository": "simpsonbm1/askamods",
+      "description": "Notas publicas de modding de ASKA (IL2CPP/BepInEx, classes, dead-ends). Fatos apenas; verificar na nossa build e creditar."
+    },
+    "sherpa-onnx": {
+      "repository": "k2-fsa/sherpa-onnx",
+      "description": "TTS/STT offline (Kokoro, Whisper ONNX). Use para confirmar OfflineTts, config e nativos."
+    },
+    "whisper-net": {
+      "repository": "sandrohanea/whisper.net",
+      "description": "Wrapper .NET do whisper.cpp para STT in-process. Use para confirmar factory, builder e runtime."
+    }
+  }
+}
