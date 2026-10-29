@@ -11,8 +11,8 @@ try {
         exit 1
     }
 
-    [xml]$env = Get-Content "Environment.props"
-    $askaDir = $env.Project.PropertyGroup.AskaDir
+    [xml]$props = Get-Content "Environment.props"
+    $askaDir = $props.Project.PropertyGroup.AskaDir
     if (-not $askaDir) { $askaDir = "C:\Program Files (x86)\Steam\steamapps\common\ASKA" }
     $interop = Join-Path $askaDir "BepInEx\interop\Assembly-CSharp.dll"
     if (-not (Test-Path $interop)) {
