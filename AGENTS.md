@@ -265,12 +265,12 @@ técnicos.
 - `v0.3.0` — cliente LM Studio/OpenAI-compatible, schema estrito, parser de intenção e brain
   com fila. **Cadeia confirmada via self-test** (harness 33/33 + `action=follow`/`come` em
   jogo). Evidência: `docs/re/llm-intent-verification.md`.
-- `v0.4.0` (**branch `feat/named-chat-reply`**) — nomes de companheiros
-  (`AI.CompanionNames`), endereçamento `Thorin, ...`, prompt com identidade e resposta no chat
-  via `ChatMenu._AddNewTextLine`. **Resposta (texto) confirmada via self-test**; linha visual
-  em mundo pendente. Harness 41/41. Evidência: `docs/re/chat-reply-verification.md`.
+- `v0.4.0` — nomes de companheiros (`AI.CompanionNames`), endereçamento `Thorin, ...`, prompt
+  com identidade e resposta no chat via `ChatMenu._AddNewTextLine`. **Confirmado em jogo em
+  2026-10-29** (`Thorin, bom dia` -> linha `Thorin: ...`; `Thorin, vem comigo` -> `action=come`).
+  Harness 41/41. Evidência: `docs/re/chat-reply-verification.md`.
 - **Branches:**
-  - `feat/named-chat-reply` — resposta no chat por nome (merge pendente).
-  - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir (próxima).
+  - `feat/recruit-follow` — registrar nomes da `PlayerParty` + executar `follow`/`stop`/`come`
+    (próxima).
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

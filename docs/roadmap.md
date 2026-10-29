@@ -57,6 +57,10 @@ uma resposta de conversa; o jogo não trava e o log mostra a intenção.
 também responde; mensagem sem nome/prefixo continua ignorada. A linha visual é local
 (single-player); co-op fica para a fase de rede.
 
+**Confirmado em jogo em 2026-10-29:** `Thorin, bom dia` gerou
+`[AIC][REPLY] Thorin: Bom dia! ...` e a linha apareceu no chat; `Thorin, vem comigo` devolveu
+`action=come`. Evidência: [`docs/re/chat-reply-verification.md`](re/chat-reply-verification.md).
+
 ## M2 — Conversa, persona e memória
 
 **Branch:** `feat/persona-memory`.
