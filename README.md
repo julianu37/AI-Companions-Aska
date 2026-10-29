@@ -41,10 +41,13 @@ Nada de gameplay ainda.
 
 ## Instalação
 
+> Release de scaffold: <https://github.com/julianu37/AI-Companions-Aska/releases/tag/v0.1.0>
+> (pré-release, sem gameplay).
+
 1. Instale o **BepInEx 6 (IL2CPP)** na pasta do ASKA e abra o jogo uma vez.
-2. Copie a pasta `AI-Companions-Aska` para:
+2. Copie o conteúdo do release (ou a pasta `AI-Companions-Aska` do build local) para:
    `...\ASKA\BepInEx\plugins\AI-Companions-Aska\`.
-3. Abra o jogo e confira `BepInEx\LogOutput.log`:
+3. Abra o jogo **pelo Steam** e confira `BepInEx\LogOutput.log`:
    deve aparecer `AI Companions - ASKA 0.1.0` e `loaded successfully`.
 4. (Quando o LLM entrar) abra o LM Studio, carregue o `qwen2.5-3b-instruct` e inicie o
    **Local Server** em `127.0.0.1:1234`.
