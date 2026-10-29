@@ -155,19 +155,22 @@ ao texto, e tocar o TTS em paralelo. O `ref string` é do método nativo; **cham
 patch. Build: `dotnet build AICompanionsAska.sln -c Release` → **0 warnings, 0 errors**,
 DLL deployada em `BepInEx\plugins\AI-Companions-Aska`.
 
-**Aplicação confirmada em jogo (2026-10-28):** o ASKA carregou o plugin 0.2.0 e o log mostrou
-`[AIC][PATCH] applied chat hook(s): ChatMenu._OnTextInputSubmit(...), ChatMenu.SendPlayerMessage(...),
-NetworkChatSession.SendInGameChatMessage(...) | harmony-registered=True`. O teste anterior, com
-o alvo único `SendPlayerMessage`, **não gerou linha `[AIC][CHAT]`** — daí o probe múltiplo.
+**Confirmado em jogo (2026-10-28):** o ASKA carregou o plugin 0.2.0 e o log mostrou:
+`[AIC][PATCH] ChatMenu._OnTextInputSubmit(string) fired`, seguido de
+`[AIC][CHAT] addressed from ChatMenu._OnTextInputSubmit (5 chars): "teste"`. O
+`NetworkChatSession.SendInGameChatMessage(string)` também disparou e a segunda captura foi
+descartada como duplicata. Mensagem sem prefixo gerou `ignored ... (5 chars)` nos dois
+caminhos. Nenhum erro no log. Evidência completa:
+[`chat-hook-verification.md`](chat-hook-verification.md).
 
-O **disparo do prefix** em uma mensagem real (`/c teste`) ainda está **pendente de
-confirmação**; é o que o roteiro abaixo cobre.
+O teste anterior, com o alvo único `SendPlayerMessage`, **não gerou linha `[AIC][CHAT]`** — daí
+o probe múltiplo. O caminho real do campo de texto é `_OnTextInputSubmit`; `SendPlayerMessage`
+ficou como fallback.
 
 **Validação fora do jogo (2026-10-28):** as classes puras (`ChatCommand`, `ChatAddressing`,
 `ChatCapture`) foram compiladas num harness de console temporário (fora do repositório, com
-`ConfigFile` real do BepInEx) e todos os casos abaixo passaram, incluindo a linha exata
-`[AIC][CHAT] addressed (5 chars): "teste"` e `last = addressed/Chat (5 chars) "teste"`.
-O que **não** foi validado é o lado do jogo: resolução do tipo, aplicação e disparo do patch.
+`ConfigFile` real do BepInEx) e todos os casos abaixo passaram. O lado do jogo (resolução,
+aplicação e disparo) foi confirmado no log acima.
 
 ### Roteiro de teste
 
@@ -176,8 +179,8 @@ O que **não** foi validado é o lado do jogo: resolução do tipo, aplicação 
    - `[AIC][PATCH] applied chat hook(s): ... | harmony-registered=True | prefix="/c" | enabled=True`
    - `[AIC][PATCH] harmony-registered=True is NOT proof of firing; wait for a '... fired' line after a real chat submit.`
 2. Abrir o chat (`Enter`), digitar `/c teste` e enviar.
-   - Esperado: `[AIC][PATCH] SSSGame.UI.ChatMenu.SendPlayerMessage fired (first call; string arg received).`
-   - Esperado: `[AIC][CHAT] addressed (5 chars): "teste"`
+   - Esperado: `[AIC][PATCH] ChatMenu._OnTextInputSubmit(string) fired (first call; string arg received).`
+   - Esperado: `[AIC][CHAT] addressed from ChatMenu._OnTextInputSubmit (5 chars): "teste"`
    - A mensagem original continua aparecendo no chat do jogo.
 3. Enviar `teste` (sem prefixo).
    - Esperado (com `VerboseLog=true`): `[AIC][CHAT] ignored (5 chars)` — **sem** o texto.
@@ -189,8 +192,11 @@ O que **não** foi validado é o lado do jogo: resolução do tipo, aplicação 
 
 ### Pendências desta branch
 
-- Confirmar o **disparo** do patch (AOT inlining — ver risco na §2).
-- `AddressByName` por nome do companheiro: **não implementado** (TODO em `ChatAddressing`).
+- [x] Confirmar o **disparo** do patch (feito em 2026-10-28; ver evidência).
+- `AddressByName` por nome do companheiro: **não implementado** (default false; TODO em
+  `ChatAddressing`).
 - LLM/resposta/voz/UI: fases seguintes.
 - Decidir se a mensagem `/c ...` deve continuar aparecendo no chat do jogo (hoje: sim).
+- Co-op: `SendInGameChatMessage` pode receber mensagens de outros jogadores no host; validar
+  antes de habilitar ordens em co-op.
 

@@ -248,6 +248,7 @@ Seções iniciais:
   filtro de prefixo, dedupe de 750 ms e log
   `[AIC][CHAT] addressed from <alvo> (N chars): "texto"` (texto só em `VerboseLog`).
 - Sem LLM, sem resposta, sem voz, sem UI.
-- **Status do hook de chat:** build 0 warnings / 0 errors; **aplicação confirmada em jogo em
-  2026-10-28** (`verified=True`). O **disparo em uma mensagem real** (`/c teste`) está
-  **pendente de confirmação** (ver `docs/re/chat-and-input.md`, §6).
+- **Status do hook de chat:** build 0 warnings / 0 errors; **aplicação e disparo confirmados
+  em jogo em 2026-10-28** (`_OnTextInputSubmit` capturou `/c teste`; `SendInGameChatMessage`
+  também disparou e o dedupe descartou a segunda captura; sem prefixo foi ignorado). Evidência:
+  `docs/re/chat-hook-verification.md`.

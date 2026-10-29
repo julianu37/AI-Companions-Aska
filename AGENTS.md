@@ -246,12 +246,12 @@ técnicos.
   agentes e skills. **Build + deploy + carregamento em jogo confirmados em 2026-10-28**; o
   `.cfg` do mod foi criado. Evidência: `docs/re/m0-load-verification.md`. Tag `v0.1.0` e
   pré-release no GitHub (DLL, sem gameplay).
-- `v0.2.0` (**branch `feat/chat-hook`**) — captura do chat por prefixo `/c`; patch aplicado e
-  `verified=True` em jogo. **Disparo em mensagem real pendente de confirmação**; LLM, voz e
-  UI ainda não existem.
+- `v0.2.0` — captura do chat por prefixo `/c`; **confirmada em jogo em 2026-10-28**
+  (`_OnTextInputSubmit` + `SendInGameChatMessage`, com dedupe; sem prefixo é ignorado).
+  Evidência: `docs/re/chat-hook-verification.md`. LLM, voz e UI ainda não existem.
 - **Branches:**
-  - `feat/chat-hook` — captura do chat (em andamento, aguardando o teste de disparo).
-  - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção.
+  - `feat/chat-hook` — captura do chat (confirmada em jogo; merge pendente).
+  - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção (próxima).
   - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir.
   - `feat/voice-stt` — push-to-talk + Whisper.net.
   - `feat/voice-tts` — Kokoro/sherpa-onnx + DialogueMenu.

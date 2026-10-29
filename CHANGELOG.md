@@ -16,8 +16,9 @@ versionamento semântico (`MAJOR.MINOR.PATCH`).
 
 ### Notas
 
-- **Aplicação do patch confirmada em jogo em 2026-10-28** (`verified=True`). O **disparo em
-  uma mensagem real** (`/c teste`) ainda está **pendente de confirmação**.
+- **Aplicação e disparo confirmados em jogo em 2026-10-28:** `_OnTextInputSubmit` capturou
+  `/c teste`; `SendInGameChatMessage` também disparou e o dedupe descartou a segunda captura;
+  sem prefixo foi ignorado. Evidência: `docs/re/chat-hook-verification.md`.
 - `AI.AddressByName` continua reservado (sem lista de companheiros); só o prefixo captura.
 - A mensagem original **não** é suprimida do chat do jogo.
 - LLM, resposta, voz e UI ainda não existem.

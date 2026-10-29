@@ -9,8 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Status:** `v0.2.0` — **chat hook**. O plugin captura mensagens endereçadas no chat
-(`/c ...`) e loga o texto; o disparo em uma mensagem real ainda está **pendente de confirmação
-em jogo**. LLM, ordens, voz e UI ainda não existem.
+(`/c ...`) e loga o texto; **confirmado em jogo em 2026-10-28**. LLM, ordens, voz e UI ainda
+não existem.
 
 ---
 
@@ -156,8 +156,8 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
 **Status:** `v0.2.0` — **chat hook**. The plugin captures addressed chat messages (`/c ...`)
-and logs the text; firing on a real message is **pending in-game confirmation**. LLM, orders,
-voice and UI do not exist yet.
+and logs the text; **confirmed in game on 2026-10-28**. LLM, orders, voice and UI do not exist
+yet.
 
 ### Requirements
 

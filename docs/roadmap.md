@@ -25,7 +25,9 @@ jogo.
 **Branches:** `feat/chat-hook` (em andamento), `feat/llm-intent`, `feat/recruit-follow`.
 
 - [x] Capturar a mensagem do jogador no `ChatMenu` (prefixo `/c`; nome reservado).
-  Patch aplicado e `verified=True` em jogo; **disparo em mensagem real pendente**.
+  **Confirmado em jogo em 2026-10-28:** `_OnTextInputSubmit` dispara e captura; o
+  `SendInGameChatMessage` também dispara e o dedupe evita captura dupla. Evidência:
+  [`docs/re/chat-hook-verification.md`](re/chat-hook-verification.md).
 - [ ] Montar prompt (persona + contrato) e chamar o LM Studio em background.
 - [ ] Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
 - [ ] Recrutar um villager para a `PlayerParty` e executar `follow`, `stop`, `come`.
