@@ -22,13 +22,14 @@ jogo.
 
 ## M1 — Chat + LLM (ordem de seguir)
 
-**Branches:** `feat/chat-hook`, `feat/llm-intent`, `feat/recruit-follow`.
+**Branches:** `feat/chat-hook` (em andamento), `feat/llm-intent`, `feat/recruit-follow`.
 
-- Capturar a mensagem do jogador no `ChatMenu` (prefixo `/c` ou nome do companheiro).
-- Montar prompt (persona + contrato) e chamar o LM Studio em background.
-- Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
-- Recrutar um villager para a `PlayerParty` e executar `follow`, `stop`, `come`.
-- Responder no chat e no balão nativo (`DialogueMenu`).
+- [x] Capturar a mensagem do jogador no `ChatMenu` (prefixo `/c`; nome reservado).
+  Patch aplicado e `verified=True` em jogo; **disparo em mensagem real pendente**.
+- [ ] Montar prompt (persona + contrato) e chamar o LM Studio em background.
+- [ ] Parsear `{ action, reply, target, resource, amount }` com schema estrito + fallbacks.
+- [ ] Recrutar um villager para a `PlayerParty` e executar `follow`, `stop`, `come`.
+- [ ] Responder no chat e no balão nativo (`DialogueMenu`).
 
 **Aceite:** em jogo, `segue` faz o villager seguir; `para` para; uma pergunta simples recebe
 uma resposta de conversa; o jogo não trava e o log mostra a intenção.

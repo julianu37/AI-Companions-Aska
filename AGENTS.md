@@ -246,8 +246,11 @@ técnicos.
   agentes e skills. **Build + deploy + carregamento em jogo confirmados em 2026-10-28**; o
   `.cfg` do mod foi criado. Evidência: `docs/re/m0-load-verification.md`. Tag `v0.1.0` e
   pré-release no GitHub (DLL, sem gameplay).
-- **Próximas branches previstas:**
-  - `feat/chat-hook` — capturar `ChatMenu.SendPlayerMessage` e provar o caminho do chat.
+- `v0.2.0` (**branch `feat/chat-hook`**) — captura do chat por prefixo `/c`; patch aplicado e
+  `verified=True` em jogo. **Disparo em mensagem real pendente de confirmação**; LLM, voz e
+  UI ainda não existem.
+- **Branches:**
+  - `feat/chat-hook` — captura do chat (em andamento, aguardando o teste de disparo).
   - `feat/llm-intent` — LM Studio + JSON schema + parser de intenção.
   - `feat/recruit-follow` — villager -> PlayerParty + ordem de seguir.
   - `feat/voice-stt` — push-to-talk + Whisper.net.

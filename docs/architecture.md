@@ -1,7 +1,8 @@
 # Arquitetura — AI Companions - ASKA
 
 Este documento descreve **como o mod funciona** e **como ele deve crescer**. O estado atual é
-`v0.1.0` (plugin que carrega); as camadas marcadas como “planejado” existem no roadmap.
+`v0.2.0` (plugin que carrega + captura do chat); as camadas marcadas como "planejado" existem no
+roadmap.
 
 ---
 
@@ -30,9 +31,11 @@ BepInEx carrega o DLL
       → Log = base.Log
       → ModConfig.Bind(Config)
       → EnvironmentReport.LogOnce()
+      → ChatPatch.Apply()                 (feat/chat-hook)
       → (fases seguintes) registrar patches, MonoBehaviour, filas
   → jogo continua
   → Plugin.Unload() (se o jogo/BepInEx descarregar)
+      → ChatPatch.Unapply() + limpar estado de captura
       → parar threads/filas, liberar modelos, remover patches
 ```
 
@@ -58,21 +61,46 @@ Regras:
 
 ### 3.2 Captura (chat/voz)
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `Patches/ChatPatch.cs` | Harmony em `SSSGame.UI.ChatMenu.SendPlayerMessage(string)` |
-| `Voice/VoiceInput.cs` | Microfone 16 kHz mono, trim, WAV em memória |
-| `Voice/WhisperStt.cs` | Transcrição in-process, fila, modelo único |
-| `AI/CompanionChat.cs` | Normaliza prefixo/nome, monta prompt, submete |
+| Arquivo | Responsabilidade | Status |
+|---|---|---|
+| `Patches/ChatPatch.cs` | Harmony em `SSSGame.UI.ChatMenu.SendPlayerMessage(string)`; prefix curto, fire-verify, `Apply`/`Unapply` idempotentes | implementado (`feat/chat-hook`) |
+| `Chat/ChatCommand.cs` | Struct `Raw`/`Text`/`Addressed`/`Source`/`TimestampUtc` | implementado |
+| `Chat/ChatAddressing.cs` | `TryParse(raw, out command)`: trim, prefixo `AI.ChatPrefix`, limpeza | implementado (só prefixo) |
+| `Chat/ChatCapture.cs` | Porta única das mensagens endereçadas: log + `Last` | implementado (só log/`Last`) |
+| `Voice/VoiceInput.cs` | Microfone 16 kHz mono, trim, WAV em memória | planejado |
+| `Voice/WhisperStt.cs` | Transcrição in-process, fila, modelo único | planejado |
+| `AI/CompanionChat.cs` | Normaliza prefixo/nome, monta prompt, submete | planejado |
+
+**Fluxo implementado (captura):**
+
+```
+ChatMenu.SendPlayerMessage(string)      [jogo, main thread]
+  → ChatPatch.Prefix(string __0)         [try/catch; nada escapa]
+      → ModConfig.Enabled?               false → return
+      → ChatAddressing.TryParse(__0)     false → [AIC][CHAT] ignored (N chars) se VerboseLog
+      → ChatCapture.Submit(command)      true  → [AIC][CHAT] addressed (N chars): "texto"
+```
+
+- O patch **não** consome a mensagem: o prefix retorna `void`, então a mensagem original
+  continua indo para o chat do jogo (decisão inicial — transparência em co-op).
+- `_ReceivePlayerMessage(PlayerRef, string, bool)` é o caminho de recebimento de outros
+  jogadores e **não** é patchado.
+- Nenhum bloqueio, I/O de rede ou alocação por frame: uma alocação por mensagem enviada.
+- `ChatCapture.TryGetLast` é o contrato para a fase do LLM; `Clear()` no `Unload`.
+- O texto ignorado **não** é logado (só o comprimento), para não vazar conversa de co-op.
 
 **Decisão de endereçamento:** o chat do ASKA é usado para conversa entre jogadores. O mod só
 reage a mensagens **endereçadas**:
 
-- prefixo configurável (`/c ...`), ou
-- nome do companheiro no início (`Thorin, segue`).
+- **prefixo configurável** (`AI.ChatPrefix`, default `/c`; case-insensitive, trimado, e
+  precisa terminar a mensagem ou ser seguido de espaço — `/casa` não é comando);
+  **vazio = captura desligada**;
+- nome do companheiro no início (`Thorin, segue`) — **reservado**: `AI.AddressByName` existe
+  na config mas **não** captura nada ainda (TODO em `ChatAddressing.TryParse`). Só deve ser
+  ligado quando houver lista de companheiros recrutados e uma regra conservadora (nome
+  completo + separador), para não sequestrar o chat em co-op.
 
-Sem prefixo/nome, a mensagem é ignorada (ou só logada em modo debug). Isso evita sequestrar o
-chat em co-op.
+Sem prefixo/nome, a mensagem é ignorada (só o comprimento aparece no log com `VerboseLog`).
 
 ### 3.3 LLM e intenção
 
@@ -207,12 +235,14 @@ Seções iniciais:
 - Sem executar comandos do modelo além da lista fechada de ações.
 - Conteúdo do jogo/modelo é **dado**, nunca instrução.
 
-## 10. Estado atual (v0.1.0)
+## 10. Estado atual (v0.2.0 — `feat/chat-hook`)
 
-- `Plugin.Load()` loga ambiente e versão.
-- `ModConfig` cria as seções/chaves iniciais.
-- Sem patches, sem captura, sem LLM, sem voz.
-- O objetivo desta versão é provar que o toolchain (BepInEx 6 IL2CPP + net6.0 + interop +
-  deploy) funciona nesta máquina.
-- **Status:** build + deploy OK; carregamento **confirmado em jogo em 2026-10-28** (log e
-  `.cfg` criados). Evidência: `docs/re/m0-load-verification.md`.
+- `Plugin.Load()` loga ambiente e versão, e chama `ChatPatch.Apply()`.
+- `ModConfig` cria as seções/chaves iniciais; `AI.ChatPrefix` (default `/c`) e
+  `AI.AddressByName` agora têm efeito documentado (o segundo ainda **não** implementado).
+- **Captura de chat implementada:** prefix Harmony em `SSSGame.UI.ChatMenu.SendPlayerMessage`
+  com fire-verify, filtro de prefixo e log `[AIC][CHAT] addressed (N chars): "texto"`.
+- Sem LLM, sem resposta, sem voz, sem UI.
+- **Status do hook de chat:** build 0 warnings / 0 errors; **aplicação confirmada em jogo em
+  2026-10-28** (`verified=True`). O **disparo em uma mensagem real** (`/c teste`) está
+  **pendente de confirmação** (ver `docs/re/chat-and-input.md`, §6).

@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Status:** `v0.1.0` — **scaffold**. O plugin BepInEx compila, é deployado e **carrega em jogo**
-(log confirmado em 2026-10-28). As ordens, o chat, o LLM e a voz entram nas próximas branches.
-Nada de gameplay ainda.
+**Status:** `v0.2.0` — **chat hook**. O plugin captura mensagens endereçadas no chat
+(`/c ...`) e loga o texto; o disparo em uma mensagem real ainda está **pendente de confirmação
+em jogo**. LLM, ordens, voz e UI ainda não existem.
 
 ---
 
@@ -154,9 +154,9 @@ Detalhes: [`docs/branches.md`](docs/branches.md).
 > (LM Studio + Qwen2.5-3B-Instruct) and **local speech** (Whisper + Kokoro). Built on ASKA's
 > native **villagers**, **PlayerParty** and **quests** — **not** on the Offline Companions base.
 
-**Status:** `v0.1.0` — **scaffold**. The BepInEx plugin builds, deploys and **loads in game**
-(log confirmed on 2026-10-28). Chat, orders, LLM and voice arrive in later branches. No gameplay
-yet.
+**Status:** `v0.2.0` — **chat hook**. The plugin captures addressed chat messages (`/c ...`)
+and logs the text; firing on a real message is **pending in-game confirmation**. LLM, orders,
+voice and UI do not exist yet.
 
 ### Requirements
 

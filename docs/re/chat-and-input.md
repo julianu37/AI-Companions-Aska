@@ -3,6 +3,8 @@
 **Fonte:** `SSSGame.UI.ChatMenu`, `SSSGame.UI.ChatMessage`,
 `SSSGame.Network.NetworkChatSession` (interop `Assembly-CSharp.dll`), extraído com
 `ilspycmd` em **2026-10-28**. Superfície apenas; o comportamento é hipótese até o probe.
+**Atualização 2026-10-28:** o hook de captura foi implementado na branch `feat/chat-hook`
+(§2 e §6); o disparo segue **pendente de confirmação em jogo**.
 
 ---
 
@@ -52,19 +54,47 @@
 - O chat tem **canais** (`CurrentChannel`); em co-op, a mensagem pode ir para o canal global.
   O mod deve respeitar o escopo e não responder a mensagens de outros jogadores.
 
-## 2. Captura proposta
+## 2. Captura implementada (`feat/chat-hook`)
 
 ```
-Harmony Prefix/Postfix em ChatMenu.SendPlayerMessage(string __0)
-  → se string.IsNullOrWhiteSpace → ignora
-  → se não começa com prefixo (/c) e não começa com nome de companheiro → ignora
-  → remove prefixo/nome, normaliza
-  → enfileira para o CompanionChat (main thread)
-  → (opcional) deixa a mensagem original seguir para o chat do jogo
+Harmony Prefix em ChatMenu.SendPlayerMessage(string __0)   [ChatPatch]
+  → ModConfig.Enabled?            false → return (jogo segue normal)
+  → ChatAddressing.TryParse(__0)  false → [AIC][CHAT] ignored (N chars) se VerboseLog
+  → ChatCapture.Submit(cmd)       true  → [AIC][CHAT] addressed (N chars): "texto"
+  → (a mensagem original segue para o chat do jogo: prefix retorna void)
 ```
 
-**Decisão pendente:** manter a mensagem original no chat (transparência) ou suprimi-la
-(`__runOriginal = false`) para não poluir o chat em co-op. Começar mantendo.
+**Decisões tomadas nesta branch:**
+
+- O patch é um **prefix `void`** (sem `__runOriginal`): não cancela nem altera o envio. A
+  mensagem crua continua no chat do jogo — transparência em co-op. Suprimir a mensagem
+  (`__runOriginal = false`) fica para uma fase posterior, se o ruído incomodar.
+- **`_ReceivePlayerMessage` não é patchado** — é o recebimento (outros jogadores).
+- Prefixo `AI.ChatPrefix`: trimado, `OrdinalIgnoreCase`, e precisa ser seguido de espaço ou
+  terminar a mensagem (`/casa` não é comando). **Prefixo vazio = captura desligada.**
+- `AI.AddressByName` **não** é usado ainda: não existe lista de companheiros recrutados para
+  desambiguar, e capturar por nome sem isso sequestraria mensagens de outros jogadores.
+  TODO registrado em `ChatAddressing.TryParse`.
+- Texto ignorado **não** é logado (apenas o comprimento), para não vazar conversa alheia.
+- `ChatCapture` guarda `Last` (`TryGetLast`) para a fase `feat/llm-intent`; `Plugin.Unload()`
+  chama `ChatPatch.Unapply()` + `ChatCapture.Clear()`.
+- Sem `Harmony.PatchAll()`/atributos: tipo por `Type.GetType("SSSGame.UI.ChatMenu, Assembly-CSharp")`
+  + varredura pontual de `Assembly.GetType` (evita o `AllTypes()` do `AccessTools.TypeByName`),
+  método por `AccessTools.Method(..., new[] { typeof(string) })` (com fallback de varredura),
+  `new Harmony(PluginInfo.Guid + ".chat")` e `harmony.Patch(...)` dentro de `try/catch`.
+  Fire-verify: `[AIC][PATCH] applied chat hook ...` + `... fired (first call ...)`.
+
+**Risco conhecido (não confirmado em jogo):** `SendPlayerMessage` é `async void` — o patch
+acerta o *stub* que inicia a state machine `<SendPlayerMessage>d__83`. Se o AOT inlinar esse
+stub no call site do botão de envio, o prefix **não dispara** (ver `dead-ends.md` §2). O log
+de fire-verify é o que revela isso; plano B: `NetworkChatSession` ou UI própria. Não patchar
+`MoveNext` da state machine sem deduplicar (o stub também dispara).
+
+**Aviso benigno do HarmonyX:** ao aplicar o patch, o `HarmonyX` loga
+`AccessTools.GetTypesFromAssembly: assembly UnityEngine.CoreModule ... ReflectionTypeLoadException`
+(os stubs do Unity têm tipos que o runtime não materializa). O patch aplica e
+`Harmony.HasAnyPatches` confirma (`verified=True`); o aviso não impede o disparo e não deve ser
+confundido com falha. Se virar problema, isolar o `Harmony.Patch` num passo sem varredura.
 
 ## 3. Alternativas
 
@@ -75,8 +105,9 @@ Harmony Prefix/Postfix em ChatMenu.SendPlayerMessage(string __0)
 | UI própria (input do mod) | controle total, não mexe no chat do jogo | mais UI, mais teclas, menos natural |
 | Comando de console/dev | simples para teste | não é a UX final |
 
-**Plano:** começar pelo `SendPlayerMessage` em `feat/chat-hook`; se o patch não disparar,
-cair para a UI própria ou para o `NetworkChatSession`.
+**Plano:** começamos pelo `SendPlayerMessage` em `feat/chat-hook` (implementado, §2). Se o
+prefix não disparar em jogo, cair para o `NetworkChatSession` ou para a UI própria; a decisão
+depende do resultado do roteiro da §6.
 
 ## 4. Diálogo do companheiro (fala visual)
 
@@ -103,14 +134,44 @@ ao texto, e tocar o TTS em paralelo. O `ref string` é do método nativo; **cham
   enquanto o campo estiver em foco (padrão já usado no AI Companions do Valheim).
 - O push-to-talk deve ser ignorado enquanto o chat/console/UI de texto estiver ativo.
 
-## 6. Probe mínimo (branch `feat/chat-hook`)
+## 6. Probe de captura (`feat/chat-hook`) — status
 
-1. Aplicar um postfix que só loga `[AIC][CHAT] SendPlayerMessage: "<texto>"`.
-2. Abrir o chat no single-player, enviar `teste`.
-3. Confirmar a linha no `LogOutput.log`.
-4. Repetir com o chat fechado/`/c`.
-5. Se não disparar: testar prefix em `ChatMenu.SendPlayerMessage`, depois
-   `NetworkChatSession`, depois UI própria.
+**Implementado (2026-10-28):** `Patches/ChatPatch.cs`, `Chat/ChatCommand.cs`,
+`Chat/ChatAddressing.cs`, `Chat/ChatCapture.cs`; `Plugin.Load/Unload` aplicam e removem o
+patch. Build: `dotnet build AICompanionsAska.sln -c Release` → **0 warnings, 0 errors**,
+DLL deployada em `BepInEx\plugins\AI-Companions-Aska`.
 
-**Critério de aceite do probe:** uma linha de log por mensagem do jogador, sem duplicar, sem
-travar, e com o texto correto (incluindo acentos).
+**Aplicação confirmada em jogo (2026-10-28):** o ASKA carregou o plugin e o log mostrou
+`[AIC][PATCH] applied chat hook ... verified=True`. O **disparo do prefix** em uma mensagem
+real (`/c teste`) ainda está **pendente de confirmação**; é o que o roteiro abaixo cobre.
+
+**Validação fora do jogo (2026-10-28):** as classes puras (`ChatCommand`, `ChatAddressing`,
+`ChatCapture`) foram compiladas num harness de console temporário (fora do repositório, com
+`ConfigFile` real do BepInEx) e todos os casos abaixo passaram, incluindo a linha exata
+`[AIC][CHAT] addressed (5 chars): "teste"` e `last = addressed/Chat (5 chars) "teste"`.
+O que **não** foi validado é o lado do jogo: resolução do tipo, aplicação e disparo do patch.
+
+### Roteiro de teste
+
+1. Subir o jogo e conferir no `BepInEx\LogOutput.log` a versão `0.1.0` e as linhas:
+   - `[AIC] Enabled=True | chat hook active (no LLM/voice yet) | ChatPrefix="/c" | AddressByName=True (reserved, not applied) | hook applied=True.`
+   - `[AIC][PATCH] applied chat hook: SSSGame.UI.ChatMenu.SendPlayerMessage(string) | id=julianu37.AICompanionsAska.chat | verified=True | prefix="/c" | enabled=True`
+2. Abrir o chat (`Enter`), digitar `/c teste` e enviar.
+   - Esperado: `[AIC][PATCH] SSSGame.UI.ChatMenu.SendPlayerMessage fired (first call; string arg received).`
+   - Esperado: `[AIC][CHAT] addressed (5 chars): "teste"`
+   - A mensagem original continua aparecendo no chat do jogo.
+3. Enviar `teste` (sem prefixo).
+   - Esperado (com `VerboseLog=true`): `[AIC][CHAT] ignored (5 chars)` — **sem** o texto.
+   - Com `VerboseLog=false`: nenhuma linha.
+4. Enviar `/C Teste` (maiúscula) e ` /c  teste ` (espaços) → ambas devem capturar `Teste`/`teste`.
+5. Enviar `/c` sozinho e `/casa` → devem ser ignorados (vazio / prefixo sem separador).
+6. Conferir que **não** há exceção nem stack no log e que o chat não travou.
+7. Opcional (co-op): mensagem de outro jogador **não** deve gerar linha de captura.
+
+### Pendências desta branch
+
+- Confirmar o **disparo** do patch (AOT inlining — ver risco na §2).
+- `AddressByName` por nome do companheiro: **não implementado** (TODO em `ChatAddressing`).
+- LLM/resposta/voz/UI: fases seguintes.
+- Decidir se a mensagem `/c ...` deve continuar aparecendo no chat do jogo (hoje: sim).
+
